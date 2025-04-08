@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>انباری | مدیریت انبار</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title" style="font-family: 'Cairo', sans-serif;">ANBARI</h1>
+            <div class="header-actions">
+                <button id="info-btn" class="icon-btn"><i class="fas fa-info-circle"></i></button>
+                <button id="theme-toggle-btn" class="icon-btn"><i class="fas fa-sun"></i></button>
+                <button id="logout-btn" class="icon-btn"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- Stores Page -->
+            <div id="stores-page" class="page active">
+                <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                    <label>افزودن فروشگاه جدید</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="new-store-name" placeholder="نام فروشگاه">
+                        <button class="btn-primary" id="add-store-btn">اضافه کن</button>
+                    </div>
+                </div>
+                <ul id="stores-list" class="item-list"></ul>
+            </div>
+
+            <!-- Items Page -->
+            <div id="items-page" class="page">
+                <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                    <label>افزودن کالای جدید</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="new-item-name" placeholder="نام کالا">
+                        <button class="btn-primary" id="add-item-btn">اضافه کن</button>
+                    </div>
+                </div>
+                <ul id="items-list" class="item-list"></ul>
+            </div>
+
+            <!-- Purchase Page -->
+            <div id="purchase-page" class="page">
+                <div class="purchase-form-box">
+                    <label>فروشگاه</label>
+                    <select id="purchase-store-select"></select>
+                    <label>کالا</label>
+                    <select id="purchase-item-select"></select>
+                    <div class="quantity-weight-row">
+                        <div class="quantity-input">
+                            <label>تعداد</label>
+                            <input type="number" id="purchase-quantity" min="0" step="1">
+                        </div>
+                        <div class="weight-input">
+                            <label>وزن (ک.گ)</label>
+                            <input type="number" id="purchase-weight" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <label>قیمت واحد (ت)</label>
+                    <input type="number" id="purchase-price" min="0" step="0.01">
+                    <label>توضیحات اضافی</label>
+                    <textarea id="purchase-extra-info"></textarea>
+                    <button class="btn-primary" id="confirm-purchase-btn">ثبت خرید</button>
+                </div>
+                <div id="purchase-list-container" style="margin-top: 20px;">
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin: 3px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="purchase-list-store-select">
+                            <option value="">-- انتخاب کنید --</option>
+                        </select>
+                    </div>
+                    <div id="purchase-list-container-inner">
+                        <div id="purchase-list-empty" class="empty-message" style="display: none;">هیچ خریدی یافت نشد</div>
+                        <div id="purchase-list" class="purchase-list-grid">
+                            <!-- داده‌ها داینامیک اینجا اضافه می‌شن -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Page -->
+            <div id="sales-page" class="page">
+                <div class="purchase-form-box">
+                    <label>فروشگاه</label>
+                    <select id="sales-store-select"></select>
+                    <label>کالا</label>
+                    <select id="sales-item-select"></select>
+                    <div class="quantity-weight-row">
+                        <div class="quantity-input">
+                            <label>تعداد</label>
+                            <input type="number" id="sales-quantity" min="0" step="1">
+                        </div>
+                        <div class="weight-input">
+                            <label>وزن (ک.گ)</label>
+                            <input type="number" id="sales-weight" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <label>قیمت واحد (ت)</label>
+                    <input type="number" id="sales-price" min="0" step="0.01">
+                    <label>توضیحات اضافی</label>
+                    <textarea id="sales-extra-info"></textarea>
+                    <button class="btn-primary" id="confirm-sale-btn">ثبت فروش</button>
+                </div>
+                <div id="sales-list-container" style="margin-top: 20px;">
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin: 3px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="sales-list-store-select">
+                            <option value="">-- انتخاب کنید --</option>
+                        </select>
+                    </div>
+                    <div id="sales-list-container-inner">
+                        <div id="sales-list-empty" class="empty-message" style="display: none;">هیچ فروشی یافت نشد</div>
+                        <div id="sales-items-list" class="purchase-list-grid">
+                            <!-- داده‌ها داینامیک اینجا اضافه می‌شن -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit & Loss Page -->
+            <div id="profit-loss-page" class="page">
+                <div class="form-section" style="background-color: var(--card-bg); border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <h3 style="text-align: center; margin-bottom: 20px; color: var(--primary-color);">سود و زیان</h3>
+                    <div id="profit-loss-content"></div>
+                </div>
+            </div>
+
+            <!-- Tools Page -->
+            <div id="tools-page" class="page">
+                <div class="inventory-box" style="background-color: white; border-radius: 8px; padding: 15px;">
+                    <h3><i class="fas fa-clipboard-list"></i> موجودی انبار</h3>
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="inventory-store-select"></select>
+                    </div>
+                    <div class="sort-tabs" id="inventory-sort-tabs">
+                        <div>
+                            <button data-sort="quantity" class="active">تعداد</button>
+                            <button data-sort="weight">وزن</button>
+                            <button data-sort="price">قیمت</button>
+                        </div>
+                    </div>
+                    <ul id="inventory-list" class="item-list"></ul>
+                </div>
+
+                <div class="inventory-box" style="background-color: white; border-radius: 8px; padding: 15px;">
+                    <h3><i class="fas fa-chart-line"></i> کنترل فروش</h3>
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="sales-control-store-select"></select>
+                    </div>
+                    <div class="sort-tabs" id="sales-control-sort-tabs">
+                        <div>
+                            <button data-sort="quantity" class="active">تعداد</button>
+                            <button data-sort="weight">وزن</button>
+                            <button data-sort="totalPrice">قیمت کل</button>
+                        </div>
+                    </div>
+                    <ul id="sales-control-list" class="item-list"></ul>
+                </div>
+
+                <div class="inventory-box">
+                    <h3><i class="fas fa-search"></i> جستجوی پیشرفته</h3>
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                        <input type="text" id="advanced-search-input" placeholder="جستجو بر اساس نام کالا، فروشگاه یا توضیحات">
+                        <button class="btn-primary" id="run-advanced-search-btn">جستجو</button>
+                    </div>
+                    <div class="sort-tabs" id="advanced-search-sort-tabs">
+                        <div>
+                            <button data-sort="date" class="active">تاریخ</button>
+                            <button data-sort="item_name">نام کالا</button>
+                            <button data-sort="store_name">نام فروشگاه</button>
+                            <button data-sort="quantity">تعداد</button>
+                            <button data-sort="weight">وزن</button>
+                            <button data-sort="purchase_total_price">قیمت خرید</button>
+                            <button data-sort="sale_total_price">قیمت فروش</button>
+                        </div>
+                    </div>
+                    <div id="advanced-search-results"></div>
+                </div>
+            </div>
+
+            <!-- Edit Store Modal -->
+            <div id="edit-store-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('edit-store-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-edit"></i> ویرایش فروشگاه</h3>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>نام فروشگاه</label>
+                        <input type="text" id="edit-store-name-input">
+                        <input type="hidden" id="edit-store-id-input">
+                    </div>
+                    <div class="button-row">
+                        <button class="btn-primary" id="confirm-edit-store-btn">ثبت تغییرات</button>
+                        <button class="btn-danger" id="delete-store-btn">از بین بردن</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Details Modal -->
+            <div id="item-details-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('item-details-modal').style.display='none'">×</span>
+                    <h3 id="item-modal-title"><i class="fas fa-box"></i> جزئیات کالا</h3>
+                    <input type="hidden" id="edit-item-id-input">
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>نام کالا</label>
+                        <input type="text" id="item-modal-name">
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>ارزش‌گذاری بر اساس</label>
+                        <div style="display: flex; gap: 20px;">
+                            <label><input type="radio" name="item-importance" value="quantity" checked> تعداد</label>
+                            <label><input type="radio" name="item-importance" value="weight"> وزن</label>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-confirm" id="confirm-item-details-btn">ثبت تغییرات</button>
+                        <button class="btn-cancel" onclick="document.getElementById('item-details-modal').style.display='none'">لغو</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Modal -->
+            <div id="info-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('info-modal').style.display='none'">×</span>
+                    <h3 class="modal-title">ANBARI</h3>
+                    <div class="creator-info">
+                        <p>Version: ANBARI 1.3.8.0</p>
+                        <p>توسعه‌دهنده: فرشاد ستایش</p>
+                        <p>این برنامه با هدف سادگی، کارایی و نوآوری با استفاده از هوش مصنوعی (AI) طراحی و توسعه داده شده تا تجربه بهتری را برای شما فراهم کند.</p>
+                        <p>در توسعه نسخه‌هایی با ویژگی‌های بیشتر و ایجاد اپلیکیشنی توانمند و کاربردی‌تر <span id="donate-link" class="donate-link"><b>شریک باشید</b></span></p>
+                        <p id="copy-success" class="copy-success">شماره کارت با موفقیت کپی شد 💰</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="app-footer">
+            <nav class="nav-bar">
+                <button class="nav-btn active" data-page="stores-page"><i class="fas fa-store"></i> <span>فروشگاه‌ها</span></button>
+                <button class="nav-btn" data-page="items-page"><i class="fas fa-box"></i> <span>کالاها</span></button>
+                <button class="nav-btn" data-page="purchase-page"><i class="fas fa-shopping-cart"></i> <span>خرید</span></button>
+                <button class="nav-btn" data-page="sales-page"><i class="fas fa-cash-register"></i> <span>فروش</span></button>
+                <button class="nav-btn" data-page="tools-page"><i class="fas fa-tools"></i> <span>ابزارها</span></button>
+            </nav>
+        </footer>
+    </div>
+
+    <div id="success-message" class="success-message" style="display: none;">کالا شما با موفقیت ثبت شد</div>
+
+    <script src="script.js"></script>
+    <script>
+        // بررسی ورود کاربر
+        const userId = localStorage.getItem('userId');
+        if (!userId) {
+            window.location.href = '/login.html';
+        }
+
+        // خروج کاربر
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('userId');
+            window.location.href = '/login.html';
+        });
+
+        // لود داده‌های کاربر از سرور
+        async function loadUserData() {
+            const userId = localStorage.getItem('userId');
+            if (!userId) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const response = await fetch(`/user-data?userId=${userId}`);
+            if (!response.ok) {
+                alert('خطا در بارگذاری داده‌ها');
+                return;
+            }
+            const userData = await response.json();
+            return userData;
+        }
+
+        // به‌روزرسانی لیست فروشگاه‌ها در سلکت‌ها
+        async function updateStoreSelects() {
+            const userData = await loadUserData();
+            const storeSelects = [
+                document.getElementById('purchase-store-select'),
+                document.getElementById('sales-store-select'),
+                document.getElementById('purchase-list-store-select'),
+                document.getElementById('sales-list-store-select'),
+                document.getElementById('inventory-store-select'),
+                document.getElementById('sales-control-store-select')
+            ];
+
+            const stores = JSON.parse(localStorage.getItem('stores')) || [];
+            storeSelects.forEach(select => {
+                select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.id;
+                    option.textContent = store.name;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        // به‌روزرسانی لیست کالاها در سلکت‌ها
+        async function updateItemSelects() {
+            const userData = await loadUserData();
+            const itemSelects = [
+                document.getElementById('purchase-item-select'),
+                document.getElementById('sales-item-select')
+            ];
+
+            const items = JSON.parse(localStorage.getItem('items')) || [];
+            itemSelects.forEach(select => {
+                select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = item.name;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        // به‌روزرسانی لیست خریدها
+        async function updatePurchaseList() {
+            const userData = await loadUserData();
+            const storeSelect = document.getElementById('purchase-list-store-select');
+            const selectedStore = storeSelect.value;
+            const purchaseList = document.getElementById('purchase-list');
+            const emptyMessage = document.getElementById('purchase-list-empty');
+
+            const purchases = userData.purchases.filter(p => !selectedStore || p.store === selectedStore);
+            if (purchases.length === 0) {
+                emptyMessage.style.display = 'block';
+                purchaseList.innerHTML = `
+                    <div class="purchase-list-item">
+                        <div class="item-header">
+                            <span class="item-name">اسم کالا</span>
+                            <span class="item-date">تاریخ</span>
+                            <div class="icon-container">
+                                <button class="edit-btn"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="item-details">
+                            <div class="details-row">
+                                <span class="quantity-weight">تعداد/وزن</span>
+                                <span class="unit-price">قیمت واحد</span>
+                            </div>
+                            <div class="details-row">
+                                <span class="total-price">قیمت کل</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            emptyMessage.style.display = 'none';
+            purchaseList.innerHTML = '';
+
+            purchases.forEach((purchase, index) => {
+                const totalPrice = (purchase.quantity * purchase.price) || (purchase.weight * purchase.price);
+                const item = document.createElement('div');
+                item.className = 'purchase-list-item';
+                item.innerHTML = `
+                    <div class="item-header">
+                        <span class="item-name">${purchase.item}</span>
+                        <span class="item-date">${purchase.date}</span>
+                        <div class="icon-container">
+                            <button class="edit-btn" data-index="${index}"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="item-details">
+                        <div class="details-row">
+                            <span class="quantity-weight">${purchase.quantity}/${purchase.weight}</span>
+                            <span class="unit-price">${purchase.price}</span>
+                        </div>
+                        <div class="details-row">
+                            <span class="total-price">${totalPrice}</span>
+                        </div>
+                    </div>
+                `;
+                purchaseList.appendChild(item);
+            });
+        }
+
+        // به‌روزرسانی لیست فروش‌ها
+        async function updateSalesList() {
+            const userData = await loadUserData();
+            const storeSelect = document.getElementById('sales-list-store-select');
+            const selectedStore = storeSelect.value;
+            const salesList = document.getElementById('sales-items-list');
+            const emptyMessage = document.getElementById('sales-list-empty');
+
+            const sales = userData.sales.filter(s => !selectedStore || s.store === selectedStore);
+            if (sales.length === 0) {
+                emptyMessage.style.display = 'block';
+                salesList.innerHTML = `
+                    <div class="purchase-list-item">
+                        <div class="item-header">
+                            <span class="item-name">اسم کالا</span>
+                            <span class="item-date">تاریخ</span>
+                            <div class="icon-container">
+                                <button class="edit-btn"><i class="fas fa-pencil-alt"></i></button>
+                                <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="item-details">
+                            <div class="details-row">
+                                <span class="quantity-weight">تعداد/وزن</span>
+                                <span class="unit-price">قیمت واحد</span>
+                            </div>
+                            <div class="details-row">
+                                <span class="total-price">قیمت کل</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            emptyMessage.style.display = 'none';
+            salesList.innerHTML = '';
+
+            sales.forEach((sale, index) => {
+                const totalPrice = (sale.quantity * sale.price) || (sale.weight * sale.price);
+                const item = document.createElement('div');
+                item.className = 'purchase-list-item';
+                item.innerHTML = `
+                    <div class="item-header">
+                        <span class="item-name">${sale.item}</span>
+                        <span class="item-date">${sale.date}</span>
+                        <div class="icon-container">
+                            <button class="edit-btn" data-index="${index}"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="item-details">
+                        <div class="details-row">
+                            <span class="quantity-weight">${sale.quantity}/${sale.weight}</span>
+                            <span class="unit-price">${sale.price}</span>
+                        </div>
+                        <div class="details-row">
+                            <span class="total-price">${totalPrice}</span>
+                        </div>
+                    </div>
+                `;
+                salesList.appendChild(item);
+            });
+        }
+
+        // ارسال داده‌های خرید به سرور
+        document.getElementById('confirm-purchase-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
+                window.location.href = '/login.html';
+                return;
+            }
+            const formData = {
+                userId: userId,
+                type: 'purchase',
+                store: document.getElementById('purchase-store-select').value,
+                item: document.getElementById('purchase-item-select').value,
+                quantity: document.getElementById('purchase-quantity').value || 0,
+                weight: document.getElementById('purchase-weight').value || 0,
+                price: document.getElementById('purchase-price').value || 0,
+                extraInfo: document.getElementById('purchase-extra-info').value,
+                date: new Date().toISOString().split('T')[0]
+            };
+            await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            document.getElementById('success-message').style.display = 'block';
+            document.getElementById('purchase-store-select').value = '';
+            document.getElementById('purchase-item-select').value = '';
+            document.getElementById('purchase-quantity').value = '';
+            document.getElementById('purchase-weight').value = '';
+            document.getElementById('purchase-price').value = '';
+            document.getElementById('purchase-extra-info').value = '';
+            updatePurchaseList();
+        });
+
+        // ارسال داده‌های فروش به سرور
+        document.getElementById('confirm-sale-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!userId) {
+                alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
+                window.location.href = '/login.html';
+                return;
+            }
+            const formData = {
+                userId: userId,
+                type: 'sale',
+                store: document.getElementById('sales-store-select').value,
+                item: document.getElementById('sales-item-select').value,
+                quantity: document.getElementById('sales-quantity').value || 0,
+                weight: document.getElementById('sales-weight').value || 0,
+                price: document.getElementById('sales-price').value || 0,
+                extraInfo: document.getElementById('sales-extra-info').value,
+                date: new Date().toISOString().split('T')[0]
+            };
+            await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            document.getElementById('success-message').style.display = 'block';
+            document.getElementById('sales-store-select').value = '';
+            document.getElementById('sales-item-select').value = '';
+            document.getElementById('sales-quantity').value = '';
+            document.getElementById('sales-weight').value = '';
+            document.getElementById('sales-price').value = '';
+            document.getElementById('sales-extra-info').value = '';
+            updateSalesList();
+        });
+
+        // فراخوانی توابع به‌روزرسانی موقع لود صفحه
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStoreSelects();
+            updateItemSelects();
+            updatePurchaseList();
+            updateSalesList();
+
+            document.getElementById('purchase-list-store-select').addEventListener('change', updatePurchaseList);
+            document.getElementById('sales-list-store-select').addEventListener('change', updateSalesList);
+        });
+
+        // نمایش مودال اطلاعات
+        document.getElementById('info-btn').addEventListener('click', () => {
+            document.getElementById('info-modal').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

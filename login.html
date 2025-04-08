@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>انباری | ورود / ثبت‌نام</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- اضافه کردن Google Sign-In SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        .login-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 20px;
+            background-color: var(--background-light);
+            transition: background-color var(--transition-speed) ease;
+        }
+
+        body[data-theme="dark"] .login-container {
+            background-color: var(--background-dark);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 10px; /* فاصله کم شده برای نزدیک‌تر شدن به باکس */
+        }
+
+        .login-header h1 {
+            font-family: 'Cairo', sans-serif;
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        .login-form-box {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .login-form-box label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .login-form-box input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+            background-color: var(--card-bg-light);
+            color: var(--text-light);
+            transition: border-color var(--transition-speed) ease, background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+            box-sizing: border-box;
+        }
+
+        body[data-theme="dark"] .login-form-box input {
+            background-color: #2c2c2c;
+            color: var(--text-dark);
+            border-color: var(--border-dark);
+        }
+
+        .login-form-box input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        .login-form-box .btn-primary {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .toggle-form {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .toggle-form p {
+            margin: 0;
+        }
+
+        .toggle-form a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toggle-form a:hover {
+            text-decoration: underline;
+        }
+
+        .google-login {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .google-login div {
+            margin: 0 auto;
+        }
+
+        .google-error {
+            color: red;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .input-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+
+        .input-toggle button {
+            padding: 10px 20px;
+            border: 1px solid var(--border-light);
+            background-color: var(--card-bg-light);
+            color: var(--text-light);
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Vazirmatn', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .input-toggle button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        body[data-theme="dark"] .input-toggle button {
+            background-color: #2c2c2c;
+            color: var(--text-dark);
+            border-color: var(--border-dark);
+        }
+
+        .input-toggle button:hover:not(.active) {
+            background-color: #e6f0ff;
+            border-color: var(--primary-color);
+        }
+
+        body[data-theme="dark"] .input-toggle button:hover:not(.active) {
+            background-color: #3a3a3a;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>ANBARI</h1>
+        </div>
+        <div class="login-form-box">
+            <div id="login-form">
+                <div class="input-toggle">
+                    <button id="mobile-toggle" class="active">شماره موبایل</button>
+                    <button id="email-toggle">جیمیل</button>
+                </div>
+                <label id="user-label">شماره موبایل</label>
+                <input type="tel" id="login-userid-input" placeholder="مثال: 09123456789">
+                <label>رمز عبور</label>
+                <input type="password" id="login-password-input" placeholder="رمز عبور خود را وارد کنید">
+                <button class="btn-primary" id="login-btn">ورود</button>
+                <div class="toggle-form">
+                    <p>حساب کاربری ندارید؟ <a href="#" id="show-signup">ثبت‌نام کنید</a></p>
+                    <div class="google-login">
+                        <div id="g_id_signin"
+                             data-client_id="299541535649-s888qlamqldqs3sn34mqg7jn4ig3t9ck.apps.googleusercontent.com"
+                             data-type="standard"
+                             data-size="large"
+                             data-theme="outline"
+                             data-text="sign_in_with"
+                             data-shape="rectangular"
+                             data-logo_alignment="left">
+                        </div>
+                        <p id="google-error" class="google-error"></p>
+                    </div>
+                </div>
+            </div>
+            <div id="signup-form" style="display: none;">
+                <div class="input-toggle">
+                    <button id="signup-mobile-toggle" class="active">شماره موبایل</button>
+                    <button id="signup-email-toggle">جیمیل</button>
+                </div>
+                <label id="signup-user-label">شماره موبایل</label>
+                <input type="tel" id="signup-userid-input" placeholder="مثال: 09123456789">
+                <label>رمز عبور</label>
+                <input type="password" id="password-input" placeholder="حداقل 8 کاراکتر">
+                <label>تکرار رمز عبور</label>
+                <input type="password" id="confirm-password-input" placeholder="رمز عبور را دوباره وارد کنید">
+                <button class="btn-primary" id="signup-btn">ثبت‌نام</button>
+                <div class="toggle-form">
+                    <p>قبلاً ثبت‌نام کرده‌اید؟ <a href="#" id="show-login">وارد شوید</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // مدیریت نمایش فرم‌ها
+        const loginForm = document.getElementById('login-form');
+        const signupForm = document.getElementById('signup-form');
+        const showSignupLink = document.getElementById('show-signup');
+        const showLoginLink = document.getElementById('show-login');
+
+        showSignupLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.style.display = 'none';
+            signupForm.style.display = 'block';
+        });
+
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            signupForm.style.display = 'none';
+            loginForm.style.display = 'block';
+        });
+
+        // مدیریت تغییر بین موبایل و ایمیل (ورود)
+        const mobileToggle = document.getElementById('mobile-toggle');
+        const emailToggle = document.getElementById('email-toggle');
+        const userLabel = document.getElementById('user-label');
+        const userInput = document.getElementById('login-userid-input');
+        let loginInputType = 'mobile';
+
+        mobileToggle.addEventListener('click', () => {
+            mobileToggle.classList.add('active');
+            emailToggle.classList.remove('active');
+            userLabel.textContent = 'شماره موبایل';
+            userInput.type = 'tel';
+            userInput.placeholder = 'مثال: 09123456789';
+            loginInputType = 'mobile';
+        });
+
+        emailToggle.addEventListener('click', () => {
+            emailToggle.classList.add('active');
+            mobileToggle.classList.remove('active');
+            userLabel.textContent = 'جیمیل';
+            userInput.type = 'email';
+            userInput.placeholder = 'مثال: example@gmail.com';
+            loginInputType = 'email';
+        });
+
+        // مدیریت تغییر بین موبایل و ایمیل (ثبت‌نام)
+        const signupMobileToggle = document.getElementById('signup-mobile-toggle');
+        const signupEmailToggle = document.getElementById('signup-email-toggle');
+        const signupUserLabel = document.getElementById('signup-user-label');
+        const signupUserInput = document.getElementById('signup-userid-input');
+        let signupInputType = 'mobile';
+
+        signupMobileToggle.addEventListener('click', () => {
+            signupMobileToggle.classList.add('active');
+            signupEmailToggle.classList.remove('active');
+            signupUserLabel.textContent = 'شماره موبایل';
+            signupUserInput.type = 'tel';
+            signupUserInput.placeholder = 'مثال: 09123456789';
+            signupInputType = 'mobile';
+        });
+
+        signupEmailToggle.addEventListener('click', () => {
+            signupEmailToggle.classList.add('active');
+            signupMobileToggle.classList.remove('active');
+            signupUserLabel.textContent = 'جیمیل';
+            signupUserInput.type = 'email';
+            signupUserInput.placeholder = 'مثال: example@gmail.com';
+            signupInputType = 'email';
+        });
+
+        // ورود کاربر
+        document.getElementById('login-btn').addEventListener('click', async () => {
+            const userId = document.getElementById('login-userid-input').value;
+            const password = document.getElementById('login-password-input').value;
+
+            if (!userId || !password) {
+                alert('لطفاً اطلاعات را وارد کنید');
+                return;
+            }
+
+            // اعتبارسنجی
+            if (loginInputType === 'mobile' && !/^\d{11}$/.test(userId)) {
+                alert('لطفاً شماره موبایل معتبر (11 رقمی) وارد کنید');
+                return;
+            }
+            if (loginInputType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userId)) {
+                alert('لطفاً ایمیل معتبر وارد کنید');
+                return;
+            }
+
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, password })
+            });
+
+            if (response.ok) {
+                localStorage.setItem('userId', userId);
+                window.location.href = '/index.html';
+            } else {
+                const error = await response.text();
+                alert(error === 'User not found' ? 'کاربر یافت نشد. لطفاً ثبت‌نام کنید.' : 'رمز عبور اشتباه است');
+            }
+        });
+
+        // ثبت‌نام کاربر
+        document.getElementById('signup-btn').addEventListener('click', async () => {
+            const userId = document.getElementById('signup-userid-input').value;
+            const password = document.getElementById('password-input').value;
+            const confirmPassword = document.getElementById('confirm-password-input').value;
+
+            // اعتبارسنجی
+            if (!userId) {
+                alert('لطفاً اطلاعات را وارد کنید');
+                return;
+            }
+            if (signupInputType === 'mobile' && !/^\d{11}$/.test(userId)) {
+                alert('لطفاً شماره موبایل معتبر (11 رقمی) وارد کنید');
+                return;
+            }
+            if (signupInputType === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userId)) {
+                alert('لطفاً ایمیل معتبر وارد کنید');
+                return;
+            }
+            if (password.length < 8) {
+                alert('رمز عبور باید حداقل 8 کاراکتر باشد');
+                return;
+            }
+            if (password !== confirmPassword) {
+                alert('رمزهای عبور وارد شده یکسان نیستند');
+                return;
+            }
+
+            const response = await fetch('/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, password })
+            });
+
+            if (response.ok) {
+                localStorage.setItem('userId', userId);
+                window.location.href = '/index.html';
+            } else {
+                alert('این کاربر قبلاً ثبت‌نام کرده است. لطفاً وارد شوید.');
+            }
+        });
+
+        // ورود با گوگل
+        window.handleCredentialResponse = async (response) => {
+            const res = await fetch('/google-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: response.credential })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('userId', data.userId);
+                window.location.href = '/index.html';
+            } else {
+                alert('خطا در ورود با گوگل. لطفاً دوباره تلاش کنید.');
+            }
+        };
+
+        // چک کردن رندر شدن دکمه گوگل
+        window.onload = () => {
+            setTimeout(() => {
+                const googleButton = document.querySelector('#g_id_signin div');
+                if (!googleButton || googleButton.innerHTML === '') {
+                    document.getElementById('google-error').style.display = 'block';
+                }
+            }, 3000); // 3 ثانیه صبر می‌کنیم تا SDK لود بشه
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>انباری | پنل مدیر</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .user-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        .user-section h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        .purchase-list-grid, .sales-list-grid {
+            display: grid;
+            gap: 10px;
+        }
+        .purchase-list-item, .sales-list-item {
+            padding: 10px;
+            background: var(--background-light);
+            border-radius: 8px;
+        }
+        body[data-theme="dark"] .purchase-list-item, body[data-theme="dark"] .sales-list-item {
+            background: var(--background-dark);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <h1 style="text-align: center; font-family: 'Cairo', sans-serif;">پنل مدیر</h1>
+        <div id="users-list"></div>
+    </div>
+
+    <script>
+        async function loadAdminData() {
+            const response = await fetch('/admin-data', {
+                headers: {
+                    'Authorization': 'Basic ' + btoa('admin:password')
+                }
+            });
+            if (!response.ok) {
+                alert('دسترسی غیرمجاز. لطفاً با حساب مدیر وارد شوید.');
+                return;
+            }
+            const data = await response.json();
+            const usersList = document.getElementById('users-list');
+            usersList.innerHTML = '';
+
+            for (const userId in data) {
+                const userData = data[userId];
+                const userSection = document.createElement('div');
+                userSection.className = 'user-section';
+                userSection.innerHTML = `
+                    <h3>کاربر: ${userId}</h3>
+                    <h4>خریدها</h4>
+                    <div class="purchase-list-grid" id="purchases-${userId}"></div>
+                    <h4>فروش‌ها</h4>
+                    <div class="sales-list-grid" id="sales-${userId}"></div>
+                `;
+                usersList.appendChild(userSection);
+
+                // نمایش خریدها
+                const purchaseList = document.getElementById(`purchases-${userId}`);
+                userData.purchases.forEach(purchase => {
+                    const totalPrice = (purchase.quantity * purchase.price) || (purchase.weight * purchase.price);
+                    const item = document.createElement('div');
+                    item.className = 'purchase-list-item';
+                    item.innerHTML = `
+                        <div>کالا: ${purchase.item}</div>
+                        <div>فروشگاه: ${purchase.store}</div>
+                        <div>تعداد/وزن: ${purchase.quantity}/${purchase.weight}</div>
+                        <div>قیمت واحد: ${purchase.price}</div>
+                        <div>قیمت کل: ${totalPrice}</div>
+                        <div>تاریخ: ${purchase.date}</div>
+                    `;
+                    purchaseList.appendChild(item);
+                });
+
+                // نمایش فروش‌ها
+                const salesList = document.getElementById(`sales-${userId}`);
+                userData.sales.forEach(sale => {
+                    const totalPrice = (sale.quantity * sale.price) || (sale.weight * sale.price);
+                    const item = document.createElement('div');
+                    item.className = 'sales-list-item';
+                    item.innerHTML = `
+                        <div>کالا: ${sale.item}</div>
+                        <div>فروشگاه: ${sale.store}</div>
+                        <div>تعداد/وزن: ${sale.quantity}/${sale.weight}</div>
+                        <div>قیمت واحد: ${sale.price}</div>
+                        <div>قیمت کل: ${totalPrice}</div>
+                        <div>تاریخ: ${sale.date}</div>
+                    `;
+                    salesList.appendChild(item);
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAdminData);
+    </script>
+</body>
+</html>
