@@ -8,8 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- اضافه کردن Google Sign-In SDK -->
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         .login-container {
             max-width: 480px;
@@ -177,18 +175,6 @@
                 <button class="btn-primary" id="login-btn">ورود</button>
                 <div class="toggle-form">
                     <p>حساب کاربری ندارید؟ <a href="#" id="show-signup">ثبت‌نام کنید</a></p>
-                    <div class="google-login">
-                        <div id="g_id_signin"
-                             data-client_id="299541535649-s888qlamqldqs3sn34mqg7jn4ig3t9ck.apps.googleusercontent.com"
-                             data-type="standard"
-                             data-size="large"
-                             data-theme="outline"
-                             data-text="sign_in_with"
-                             data-shape="rectangular"
-                             data-logo_alignment="left">
-                        </div>
-                        <p id="google-error" class="google-error"></p>
-                    </div>
                 </div>
             </div>
             <div id="signup-form" style="display: none;">
@@ -355,33 +341,6 @@
                 alert('این کاربر قبلاً ثبت‌نام کرده است. لطفاً وارد شوید.');
             }
         });
-
-        // ورود با گوگل
-        window.handleCredentialResponse = async (response) => {
-            const res = await fetch('/google-login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: response.credential })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                localStorage.setItem('userId', data.userId);
-                window.location.href = '/index.html';
-            } else {
-                alert('خطا در ورود با گوگل. لطفاً دوباره تلاش کنید.');
-            }
-        };
-
-        // چک کردن رندر شدن دکمه گوگل
-        window.onload = () => {
-            setTimeout(() => {
-                const googleButton = document.querySelector('#g_id_signin div');
-                if (!googleButton || googleButton.innerHTML === '') {
-                    document.getElementById('google-error').style.display = 'block';
-                }
-            }, 3000); // 3 ثانیه صبر می‌کنیم تا SDK لود بشه
-        };
     </script>
 </body>
 </html>
