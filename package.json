@@ -1,17 +1,12 @@
 {
-  "name": "anbari-7.0.6.101",
+  "name": "anbari",
   "version": "1.0.0",
-  "main": "script-forosh.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+      "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0",
-    "google-auth-library": "^9.15.1"
-  },
-  "description": ""
+      "express": "^4.17.1",
+      "bcrypt": "^5.1.1"
+  }
 }
