@@ -32,6 +32,15 @@
         "price": "10",
         "extraInfo": "",
         "date": "2025-04-08"
+      },
+      {
+        "store": "1744164111146",
+        "item": "1744164123102",
+        "quantity": "22",
+        "weight": 0,
+        "price": "100",
+        "extraInfo": "",
+        "date": "2025-04-09"
       }
     ],
     "sales": [
@@ -43,6 +52,15 @@
         "price": 0,
         "extraInfo": "",
         "date": "2025-04-08"
+      },
+      {
+        "store": "1744164111146",
+        "item": "1744164123102",
+        "quantity": "11",
+        "weight": 0,
+        "price": "100",
+        "extraInfo": "",
+        "date": "2025-04-09"
       }
     ]
   }
