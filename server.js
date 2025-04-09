@@ -6,22 +6,22 @@ const app = express();
 
 // Middleware برای پردازش داده‌های JSON
 app.use(express.json());
-// سرو کردن فایل‌های استاتیک (HTML، CSS، JS) از ریشه پروژه
-app.use(express.static(path.join(__dirname, '.')));
+// سرو کردن فایل‌های استاتیک از پوشه public
+app.use(express.static(path.join(__dirname, 'public')));
 
 // روت برای مسیر ریشه (/)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // روت صریح برای login.html
 app.get('/login.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'login.html'));
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 // روت صریح برای admin.html
 app.get('/admin.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'admin.html'));
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
 // لود کردن داده‌های کاربران
