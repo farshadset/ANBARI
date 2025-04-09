@@ -261,35 +261,42 @@
         // بررسی ورود کاربر
         const userId = localStorage.getItem('userId');
         if (!userId) {
-            window.location.href = '/login.html';
+            window.location.replace('/login.html'); // استفاده از replace به جای href برای جلوگیری از بازگشت
         }
 
         // خروج کاربر
         document.getElementById('logout-btn').addEventListener('click', () => {
             localStorage.removeItem('userId');
-            window.location.href = '/login.html';
+            window.location.replace('/login.html');
         });
 
         // لود داده‌های کاربر از سرور
         async function loadUserData() {
             const userId = localStorage.getItem('userId');
             if (!userId) {
-                window.location.href = '/login.html';
+                window.location.replace('/login.html');
                 return;
             }
 
-            const response = await fetch(`/user-data?userId=${userId}`);
-            if (!response.ok) {
+            try {
+                const response = await fetch(`/user-data?userId=${userId}`);
+                if (!response.ok) {
+                    throw new Error('خطا در بارگذاری داده‌ها');
+                }
+                const userData = await response.json();
+                return userData;
+            } catch (error) {
+                console.error('Error loading user data:', error);
                 alert('خطا در بارگذاری داده‌ها');
-                return;
+                return null;
             }
-            const userData = await response.json();
-            return userData;
         }
 
         // به‌روزرسانی لیست فروشگاه‌ها در سلکت‌ها
         async function updateStoreSelects() {
             const userData = await loadUserData();
+            if (!userData) return;
+
             const storeSelects = [
                 document.getElementById('purchase-store-select'),
                 document.getElementById('sales-store-select'),
@@ -314,6 +321,8 @@
         // به‌روزرسانی لیست کالاها در سلکت‌ها
         async function updateItemSelects() {
             const userData = await loadUserData();
+            if (!userData) return;
+
             const itemSelects = [
                 document.getElementById('purchase-item-select'),
                 document.getElementById('sales-item-select')
@@ -334,6 +343,8 @@
         // به‌روزرسانی لیست خریدها
         async function updatePurchaseList() {
             const userData = await loadUserData();
+            if (!userData) return;
+
             const storeSelect = document.getElementById('purchase-list-store-select');
             const selectedStore = storeSelect.value;
             const purchaseList = document.getElementById('purchase-list');
@@ -399,6 +410,8 @@
         // به‌روزرسانی لیست فروش‌ها
         async function updateSalesList() {
             const userData = await loadUserData();
+            if (!userData) return;
+
             const storeSelect = document.getElementById('sales-list-store-select');
             const selectedStore = storeSelect.value;
             const salesList = document.getElementById('sales-items-list');
@@ -464,9 +477,10 @@
         // ارسال داده‌های خرید به سرور
         document.getElementById('confirm-purchase-btn').addEventListener('click', async (e) => {
             e.preventDefault();
+            const userId = localStorage.getItem('userId');
             if (!userId) {
                 alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
-                window.location.href = '/login.html';
+                window.location.replace('/login.html');
                 return;
             }
             const formData = {
@@ -480,27 +494,33 @@
                 extraInfo: document.getElementById('purchase-extra-info').value,
                 date: new Date().toISOString().split('T')[0]
             };
-            await fetch('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            document.getElementById('success-message').style.display = 'block';
-            document.getElementById('purchase-store-select').value = '';
-            document.getElementById('purchase-item-select').value = '';
-            document.getElementById('purchase-quantity').value = '';
-            document.getElementById('purchase-weight').value = '';
-            document.getElementById('purchase-price').value = '';
-            document.getElementById('purchase-extra-info').value = '';
-            updatePurchaseList();
+            try {
+                await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                document.getElementById('success-message').style.display = 'block';
+                document.getElementById('purchase-store-select').value = '';
+                document.getElementById('purchase-item-select').value = '';
+                document.getElementById('purchase-quantity').value = '';
+                document.getElementById('purchase-weight').value = '';
+                document.getElementById('purchase-price').value = '';
+                document.getElementById('purchase-extra-info').value = '';
+                updatePurchaseList();
+            } catch (error) {
+                console.error('Error submitting purchase:', error);
+                alert('خطا در ثبت خرید');
+            }
         });
 
         // ارسال داده‌های فروش به سرور
         document.getElementById('confirm-sale-btn').addEventListener('click', async (e) => {
             e.preventDefault();
+            const userId = localStorage.getItem('userId');
             if (!userId) {
                 alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
-                window.location.href = '/login.html';
+                window.location.replace('/login.html');
                 return;
             }
             const formData = {
@@ -514,19 +534,24 @@
                 extraInfo: document.getElementById('sales-extra-info').value,
                 date: new Date().toISOString().split('T')[0]
             };
-            await fetch('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            document.getElementById('success-message').style.display = 'block';
-            document.getElementById('sales-store-select').value = '';
-            document.getElementById('sales-item-select').value = '';
-            document.getElementById('sales-quantity').value = '';
-            document.getElementById('sales-weight').value = '';
-            document.getElementById('sales-price').value = '';
-            document.getElementById('sales-extra-info').value = '';
-            updateSalesList();
+            try {
+                await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                document.getElementById('success-message').style.display = 'block';
+                document.getElementById('sales-store-select').value = '';
+                document.getElementById('sales-item-select').value = '';
+                document.getElementById('sales-quantity').value = '';
+                document.getElementById('sales-weight').value = '';
+                document.getElementById('sales-price').value = '';
+                document.getElementById('sales-extra-info').value = '';
+                updateSalesList();
+            } catch (error) {
+                console.error('Error submitting sale:', error);
+                alert('خطا در ثبت فروش');
+            }
         });
 
         // فراخوانی توابع به‌روزرسانی موقع لود صفحه

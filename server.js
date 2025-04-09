@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs');
-const bcrypt = require('bcrypt'); // اضافه کردن bcrypt برای رمزنگاری
-const path = require('path'); // برای مدیریت مسیرها
+const bcrypt = require('bcrypt');
+const path = require('path');
 const app = express();
 
 // Middleware برای پردازش داده‌های JSON
@@ -12,6 +12,16 @@ app.use(express.static(path.join(__dirname, '.')));
 // روت برای مسیر ریشه (/)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// روت صریح برای login.html
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+// روت صریح برای admin.html
+app.get('/admin.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 // لود کردن داده‌های کاربران
