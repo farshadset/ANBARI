@@ -128,6 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayPurchaseFormTitle = document.getElementById('purchase-form-title') || { textContent: '' };
     const purchaseFormTitle = document.getElementById('purchase-form-title') || { textContent: '' };
 
+    if (!localStorage.getItem('userId') || !localStorage.getItem('token')) {
+        window.location.href = '/login.html';
+        return;
+    }
+
     // --- User Management ---
     let userId;
 
