@@ -89,27 +89,22 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     }
 
     try {
-        let credentials;
-        if (loginInputType === 'email') {
-            credentials = { email: userId, password };
-        } else {
-            // برای ورود با موبایل، از ایمیل جعلی استفاده می‌کنیم
-            credentials = { email: `${userId}@anbari.app`, password };
-        }
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, password })
+        });
+        const result = await response.json();
 
-        const { data, error } = await supabase.auth.signInWithPassword(credentials);
-
-        if (error) {
-            if (error.message.includes('Invalid login credentials')) {
-                alert('کاربر یافت نشد یا رمز عبور اشتباه است. لطفاً ثبت‌نام کنید یا اطلاعات را بررسی کنید.');
-            } else {
-                alert('خطا در ورود: ' + error.message);
-            }
+        if (!response.ok) {
+            alert(result.error || 'خطا در ورود');
             return;
         }
 
-        // ذخیره userId با استفاده از initializeUser
-        await initializeUser();
+        // ذخیره توکن و userId
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('userId', userId);
+        await initializeUser(); // اگه هنوز نیازه
         window.location.href = '/index.html';
     } catch (error) {
         console.error('Error during login:', error);
@@ -117,13 +112,12 @@ document.getElementById('login-btn').addEventListener('click', async () => {
     }
 });
 
-// ثبت‌نام کاربر با Supabase
+// ثبت‌نام کاربر
 document.getElementById('signup-btn').addEventListener('click', async () => {
     const userId = document.getElementById('signup-userid-input').value;
     const password = document.getElementById('password-input').value;
     const confirmPassword = document.getElementById('confirm-password-input').value;
 
-    // اعتبارسنجی
     if (!userId) {
         alert('لطفاً اطلاعات را وارد کنید');
         return;
@@ -146,26 +140,33 @@ document.getElementById('signup-btn').addEventListener('click', async () => {
     }
 
     try {
-        let credentials;
-        if (signupInputType === 'email') {
-            credentials = { email: userId, password };
-        } else {
-            // برای ثبت‌نام با موبایل، از ایمیل جعلی استفاده می‌کنیم
-            credentials = { email: `${userId}@anbari.app`, password };
-        }
+        const response = await fetch('/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, password })
+        });
+        const result = await response.json();
 
-        const { data, error } = await supabase.auth.signUp(credentials);
-
-        if (error) {
-            if (error.message.includes('User already registered')) {
-                alert('این کاربر قبلاً ثبت‌نام کرده است. لطفاً وارد شوید.');
-            } else {
-                alert('خطا در ثبت‌نام: ' + error.message);
-            }
+        if (!response.ok) {
+            alert(result.error || 'خطا در ثبت‌نام');
             return;
         }
 
-        // ذخیره userId با استفاده از initializeUser
+        // ورود خودکار بعد از ثبت‌نام
+        const loginResponse = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, password })
+        });
+        const loginResult = await loginResponse.json();
+
+        if (!loginResponse.ok) {
+            alert(loginResult.error || 'خطا در ورود بعد از ثبت‌نام');
+            return;
+        }
+
+        localStorage.setItem('token', loginResult.token);
+        localStorage.setItem('userId', userId);
         await initializeUser();
         window.location.href = '/index.html';
     } catch (error) {

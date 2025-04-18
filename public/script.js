@@ -129,22 +129,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const purchaseFormTitle = document.getElementById('purchase-form-title') || { textContent: '' };
 
     // --- User Management ---
-    // فرض می‌کنیم userId از یک سیستم لاگین یا ورودی کاربر دریافت می‌شود
-        // --- User Management ---
-    // Get the current user from Supabase
-        // --- User Management ---
-    // Get the current user from Supabase
-    const getCurrentUser = async () => {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        return user ? user.id : 'user_' + Date.now().toString();
+    let userId;
+
+    const getCurrentUser = () => {
+        return localStorage.getItem('userId') || 'user_' + Date.now().toString();
     };
     
-    // متغیر userId به صورت گلوبال تعریف می‌شود
-    let userId;
-    
-    // تابع async برای مقداردهی اولیه userId
     const initializeUser = async () => {
-        const userId = await getCurrentUser();
+        userId = getCurrentUser();
         localStorage.setItem('userId', userId);
         return userId;
     };
@@ -2064,73 +2056,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
 const fetchDataFromServer = async () => {
     const userId = localStorage.getItem('userId');
-    if (!userId) {
-        console.log('User not logged in, skipping Supabase data fetch');
+    const token = localStorage.getItem('token');
+
+    if (!userId || !token) {
+        console.error('No userId or token found');
+        stores = [];
+        items = [];
+        purchases = [];
+        sales = [];
         return;
     }
 
     try {
-        // دریافت تمام داده‌ها از جدول data
-        const { data: records, error } = await supabaseClient
-            .from('data')
-            .select('*')
-            .eq('userId', userId);
+        const response = await fetch('/api/data', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        const result = await response.json();
 
-        if (error) throw error;
+        if (!response.ok) {
+            console.error('Error:', result.error);
+            stores = [];
+            items = [];
+            purchases = [];
+            sales = [];
+            return;
+        }
 
-        // جداسازی داده‌ها بر اساس نوع
-        stores = records
-            .filter(record => record.type === 'store')
-            .map(record => ({
-                id: record.id,
-                name: record.store // ستون store برای نام فروشگاه
-            })) || [];
-
-        items = records
-            .filter(record => record.type === 'item')
-            .map(record => ({
-                id: record.id,
-                name: record.item, // ستون item برای نام کالا
-                importance: record.extraInfo || 'quantity' // استفاده از extraInfo برای importance
-            })) || [];
-
-        purchases = records
-            .filter(record => record.type === 'purchase')
-            .map(record => ({
-                id: record.id,
-                storeId: record.store,
-                itemId: record.item,
-                quantity: record.quantity || 0,
-                weight: record.weight || 0,
-                price: record.price || 0,
-                totalPrice: record.extraInfo === 'quantity'
-                    ? (record.quantity || 0) * (record.price || 0)
-                    : (record.weight || 0) * (record.price || 0),
-                extraInfo: record.extraInfo || '',
-                timestamp: new Date(record.date).getTime()
-            })) || [];
-
-        sales = records
-            .filter(record => record.type === 'sale')
-            .map(record => ({
-                id: record.id,
-                storeId: record.store,
-                itemId: record.item,
-                quantity: record.quantity || 0,
-                weight: record.weight || 0,
-                price: record.price || 0,
-                extraInfo: record.extraInfo || '',
-                timestamp: new Date(record.date).getTime()
-            })) || [];
+        // به‌روزرسانی متغیرهای جهانی
+        stores = result.stores || [];
+        items = result.items || [];
+        purchases = result.purchases || [];
+        sales = result.sales || [];
 
         // ذخیره در localStorage برای استفاده آفلاین
         const localData = { stores, items, purchases, sales };
         localStorage.setItem('anbari_data', JSON.stringify(localData));
 
-        console.log('Data fetched from Supabase successfully:', localData);
+        console.log('Data fetched from server successfully:', localData);
 
     } catch (error) {
-        console.error('Error fetching data from Supabase:', error);
+        console.error('Error fetching data from server:', error);
         // بارگذاری از localStorage در صورت خطا
         const localData = JSON.parse(localStorage.getItem('anbari_data')) || {};
         stores = localData.stores || [];
