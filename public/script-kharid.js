@@ -1,3 +1,5 @@
+import { supabase, populateStoreSelects, formatDate, formatPrice, showSuccessMessage } from './script.js';
+
 // Purchase Page Functionality - Mirror of Sales Page
 const purchaseStoreSelect = document.getElementById('purchase-store-select');
 const purchaseItemSelect = document.getElementById('purchase-item-select');
@@ -10,10 +12,10 @@ const purchaseListStoreSelect = document.getElementById('purchase-list-store-sel
 const purchaseListEmpty = document.getElementById('purchase-list-empty');
 const purchaseList = document.getElementById('purchase-list');
 
-// Load purchase page data
+// load purchase page data 
 const loadPurchasePageData = () => {
     populateStoreSelects();
-    renderPurchaseList();
+    renderPurchaseList(purchaseListStoreSelect.value); // اضافه کردن store برای رندر لیست
 };
 
 // Clear purchase form
@@ -25,70 +27,87 @@ const clearPurchaseForm = () => {
 };
 
 // Add purchase
-const addPurchase = () => {
-    const storeId = purchaseStoreSelect.value;
-    const itemId = purchaseItemSelect.value;
+const addPurchase = async () => {
+    const store = purchaseStoreSelect.value;
+    const item = purchaseItemSelect.value;
     const quantity = parseFloat(purchaseQuantityInput.value) || 0;
     const weight = parseFloat(purchaseWeightInput.value) || 0;
     const price = parseFloat(purchasePriceInput.value) || 0;
     const extraInfo = purchaseExtraInfoInput.value;
-    
-    if (!storeId || !itemId || (quantity <= 0 && weight <= 0) || price <= 0) {
+
+    if (!store || !item || (quantity <= 0 && weight <= 0) || price <= 0) {
         alert('لطفا تمام اطلاعات خرید را به درستی وارد کنید');
         return;
     }
-    
-    const newPurchase = {
-        id: `p-${Date.now()}`,
-        storeId,
-        itemId,
+
+    const purchaseData = {
+        id: `p-${Date.now()}`, // اضافه کردن id برای هماهنگی با ساختار جدول
+        type: 'purchase',
+        store,
+        item,
         quantity,
         weight,
         price,
-        extraInfo,
-        timestamp: Date.now()
+        date: new Date().toISOString(),
+        userId: localStorage.getItem('userId'),
+        extraInfo
     };
-    
-    purchases.push(newPurchase);
-    saveData();
-    clearPurchaseForm();
-    renderPurchaseList();
-    showSuccessMessage('خرید با موفقیت ثبت شد');
+
+    try {
+        const { error } = await supabase.from('data').insert([purchaseData]);
+        if (error) throw error;
+
+        clearPurchaseForm();
+        renderPurchaseList(purchaseListStoreSelect.value); // اضافه کردن store برای رندر لیست
+        showSuccessMessage('خرید با موفقیت ثبت شد');
+    } catch (error) {
+        console.error('Error adding purchase:', error);
+        alert('خطا در ثبت خرید');
+    }
 };
 
 // Render purchase list
-const renderPurchaseList = (storeId = '') => {
+const renderPurchaseList = async (store = '') => {
+    const userId = localStorage.getItem('userId');
+    let query = supabase
+        .from('data')
+        .select('*')
+        .eq('userId', userId)
+        .eq('type', 'purchase');
+
+    if (store) {
+        query = query.eq('store', store);
+    }
+
+    const { data: purchases, error } = await query;
+
+    if (error) {
+        console.error('Error rendering purchase list:', error);
+        return;
+    }
+
     purchaseList.innerHTML = '';
-    
-    let filteredPurchases = storeId 
-        ? purchases.filter(purchase => purchase.storeId === storeId)
-        : purchases;
-    
-    // Sort by date descending (newest first)
-    filteredPurchases = filteredPurchases.sort((a, b) => b.timestamp - a.timestamp);
-    
-    if (filteredPurchases.length === 0) {
+
+    if (purchases.length === 0) {
         purchaseListEmpty.style.display = 'block';
         return;
     }
-    
+
     purchaseListEmpty.style.display = 'none';
-    
-    filteredPurchases.forEach(purchase => {
-        const item = items.find(i => i.id === purchase.itemId) || {};
-        
+
+    purchases.forEach(purchase => {
         const card = document.createElement('div');
         card.className = 'purchase-card';
         card.dataset.purchaseId = purchase.id;
-        
+
         const quantity = purchase.quantity || 0;
         const weight = purchase.weight || 0;
         const totalPrice = purchase.price * (quantity || weight);
-        
+
         card.innerHTML = `
             <div class="purchase-card-header" style="display: flex; justify-content: space-between;">
-                <span class="purchase-item-name" style="margin-left: 10px;">${item.name || 'کالای حذف شده'}</span>
-                <span class="purchase-date" style="margin-right: 10px;">${formatDate(purchase.timestamp)}</span>
+                <span class="purchase-item-name" style="margin-left: 10px;">${purchase.item || 'کالای حذف شده'}</span>
+                <span class="purchase-date" style="margin-right: 10px;">${formatDate(new Date(purchase.date).getTime())}</span>
             </div>
             <div class="purchase-details">
                 <div class="quantity-price" style="display: flex; gap: 60px;">
@@ -106,30 +125,37 @@ const renderPurchaseList = (storeId = '') => {
             </div>
             <button class="delete-btn" title="حذف" style="position: absolute; left: 10px; bottom: 10px;"><i class="fas fa-trash-alt"></i></button>
         `;
-        
+
         const deleteBtn = card.querySelector('.delete-btn');
-        
-        deleteBtn.addEventListener('click', () => {
+
+        deleteBtn.addEventListener('click', async () => {
             if (confirm('آیا مطمئنی می‌خوای این خرید رو حذف کنی؟')) {
-                const purchaseIndex = purchases.findIndex(p => p.id === purchase.id);
-                if (purchaseIndex > -1) {
-                    purchases.splice(purchaseIndex, 1);
-                    saveData();
-                    renderPurchaseList(storeId);
-                    showSuccessMessage('خرید با موفقیت حذف شد');
+                const { error } = await supabase
+                    .from('data')
+                    .delete()
+                    .eq('id', purchase.id)
+                    .eq('userId', userId);
+
+                if (error) {
+                    console.error('Error deleting purchase:', error);
+                    alert('خطا در حذف خرید');
+                    return;
                 }
+
+                renderPurchaseList(store);
+                showSuccessMessage('خرید با موفقیت حذف شد');
             }
         });
-        
+
         purchaseList.appendChild(card);
     });
 };
 
 // Event listeners
 purchaseStoreSelect.addEventListener('change', () => {
-    const storeId = purchaseStoreSelect.value;
-    if (storeId) {
-        populateItemSelectsForPurchase(storeId);
+    const store = purchaseStoreSelect.value; // تغییر از storeId به store
+    if (store) {
+        populateItemSelectsForPurchase(store);
     }
 });
 
@@ -140,8 +166,9 @@ purchaseListStoreSelect.addEventListener('change', () => {
 confirmPurchaseBtn.addEventListener('click', addPurchase);
 
 // Initialize purchase page
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (document.getElementById('purchase-page')) {
+        await fetchDataFromServer(); // این تابع توی script.js تعریف شده
         loadPurchasePageData();
     }
 });

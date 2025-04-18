@@ -256,318 +256,38 @@
 
     <div id="success-message" class="success-message" style="display: none;">کالا شما با موفقیت ثبت شد</div>
 
-    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script type="module" src="script.js"></script>
+    <script type="module" src="script-kharid.js"></script>
+    <script type="module" src="script-forosh.js"></script>
     <script>
-        // بررسی ورود کاربر
-        const userId = localStorage.getItem('userId');
-        if (!userId) {
-            window.location.replace('/login.html'); // استفاده از replace به جای href برای جلوگیری از بازگشت
+        // Initialize Supabase Client
+        const supabase = createClient('https://eqvntgatghetawqgzfrj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxdm50Z2F0Z2hldGF3cWd6ZnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyMTgzNzksImV4cCI6MjA1OTc5NDM3OX0.rjwexkcrG32FFjhkLZ-Nm9BaUGHhZ3puJOupfpS3Fd4');
+
+        // بررسی ورود کاربر با Supabase
+        async function checkUserLogin() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                window.location.replace('/login.html');
+            }
         }
 
         // خروج کاربر
-        document.getElementById('logout-btn').addEventListener('click', () => {
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await supabase.auth.signOut();
             localStorage.removeItem('userId');
+            localStorage.removeItem('token');
             window.location.replace('/login.html');
-        });
-
-        // لود داده‌های کاربر از سرور
-        async function loadUserData() {
-            const userId = localStorage.getItem('userId');
-            if (!userId) {
-                window.location.replace('/login.html');
-                return;
-            }
-
-            try {
-                const response = await fetch(`/user-data?userId=${userId}`);
-                if (!response.ok) {
-                    throw new Error('خطا در بارگذاری داده‌ها');
-                }
-                const userData = await response.json();
-                return userData;
-            } catch (error) {
-                console.error('Error loading user data:', error);
-                alert('خطا در بارگذاری داده‌ها');
-                return null;
-            }
-        }
-
-        // به‌روزرسانی لیست فروشگاه‌ها در سلکت‌ها
-        async function updateStoreSelects() {
-            const userData = await loadUserData();
-            if (!userData) return;
-
-            const storeSelects = [
-                document.getElementById('purchase-store-select'),
-                document.getElementById('sales-store-select'),
-                document.getElementById('purchase-list-store-select'),
-                document.getElementById('sales-list-store-select'),
-                document.getElementById('inventory-store-select'),
-                document.getElementById('sales-control-store-select')
-            ];
-
-            const stores = JSON.parse(localStorage.getItem('stores')) || [];
-            storeSelects.forEach(select => {
-                select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
-                stores.forEach(store => {
-                    const option = document.createElement('option');
-                    option.value = store.id;
-                    option.textContent = store.name;
-                    select.appendChild(option);
-                });
-            });
-        }
-
-        // به‌روزرسانی لیست کالاها در سلکت‌ها
-        async function updateItemSelects() {
-            const userData = await loadUserData();
-            if (!userData) return;
-
-            const itemSelects = [
-                document.getElementById('purchase-item-select'),
-                document.getElementById('sales-item-select')
-            ];
-
-            const items = JSON.parse(localStorage.getItem('items')) || [];
-            itemSelects.forEach(select => {
-                select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
-                items.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.id;
-                    option.textContent = item.name;
-                    select.appendChild(option);
-                });
-            });
-        }
-
-        // به‌روزرسانی لیست خریدها
-        async function updatePurchaseList() {
-            const userData = await loadUserData();
-            if (!userData) return;
-
-            const storeSelect = document.getElementById('purchase-list-store-select');
-            const selectedStore = storeSelect.value;
-            const purchaseList = document.getElementById('purchase-list');
-            const emptyMessage = document.getElementById('purchase-list-empty');
-
-            const purchases = userData.purchases.filter(p => !selectedStore || p.store === selectedStore);
-            if (purchases.length === 0) {
-                emptyMessage.style.display = 'block';
-                purchaseList.innerHTML = `
-                    <div class="purchase-list-item">
-                        <div class="item-header">
-                            <span class="item-name">اسم کالا</span>
-                            <span class="item-date">تاریخ</span>
-                            <div class="icon-container">
-                                <button class="edit-btn"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="delete-btn"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                        <div class="item-details">
-                            <div class="details-row">
-                                <span class="quantity-weight">تعداد/وزن</span>
-                                <span class="unit-price">قیمت واحد</span>
-                            </div>
-                            <div class="details-row">
-                                <span class="total-price">قیمت کل</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            emptyMessage.style.display = 'none';
-            purchaseList.innerHTML = '';
-
-            purchases.forEach((purchase, index) => {
-                const totalPrice = (purchase.quantity * purchase.price) || (purchase.weight * purchase.price);
-                const item = document.createElement('div');
-                item.className = 'purchase-list-item';
-                item.innerHTML = `
-                    <div class="item-header">
-                        <span class="item-name">${purchase.item}</span>
-                        <span class="item-date">${purchase.date}</span>
-                        <div class="icon-container">
-                            <button class="edit-btn" data-index="${index}"><i class="fas fa-pencil-alt"></i></button>
-                            <button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>
-                    <div class="item-details">
-                        <div class="details-row">
-                            <span class="quantity-weight">${purchase.quantity}/${purchase.weight}</span>
-                            <span class="unit-price">${purchase.price}</span>
-                        </div>
-                        <div class="details-row">
-                            <span class="total-price">${totalPrice}</span>
-                        </div>
-                    </div>
-                `;
-                purchaseList.appendChild(item);
-            });
-        }
-
-        // به‌روزرسانی لیست فروش‌ها
-        async function updateSalesList() {
-            const userData = await loadUserData();
-            if (!userData) return;
-
-            const storeSelect = document.getElementById('sales-list-store-select');
-            const selectedStore = storeSelect.value;
-            const salesList = document.getElementById('sales-items-list');
-            const emptyMessage = document.getElementById('sales-list-empty');
-
-            const sales = userData.sales.filter(s => !selectedStore || s.store === selectedStore);
-            if (sales.length === 0) {
-                emptyMessage.style.display = 'block';
-                salesList.innerHTML = `
-                    <div class="purchase-list-item">
-                        <div class="item-header">
-                            <span class="item-name">اسم کالا</span>
-                            <span class="item-date">تاریخ</span>
-                            <div class="icon-container">
-                                <button class="edit-btn"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="delete-btn"><i class="fas fa-trash"></i></button>
-                            </div>
-                        </div>
-                        <div class="item-details">
-                            <div class="details-row">
-                                <span class="quantity-weight">تعداد/وزن</span>
-                                <span class="unit-price">قیمت واحد</span>
-                            </div>
-                            <div class="details-row">
-                                <span class="total-price">قیمت کل</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            emptyMessage.style.display = 'none';
-            salesList.innerHTML = '';
-
-            sales.forEach((sale, index) => {
-                const totalPrice = (sale.quantity * sale.price) || (sale.weight * sale.price);
-                const item = document.createElement('div');
-                item.className = 'purchase-list-item';
-                item.innerHTML = `
-                    <div class="item-header">
-                        <span class="item-name">${sale.item}</span>
-                        <span class="item-date">${sale.date}</span>
-                        <div class="icon-container">
-                            <button class="edit-btn" data-index="${index}"><i class="fas fa-pencil-alt"></i></button>
-                            <button class="delete-btn" data-index="${index}"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>
-                    <div class="item-details">
-                        <div class="details-row">
-                            <span class="quantity-weight">${sale.quantity}/${sale.weight}</span>
-                            <span class="unit-price">${sale.price}</span>
-                        </div>
-                        <div class="details-row">
-                            <span class="total-price">${totalPrice}</span>
-                        </div>
-                    </div>
-                `;
-                salesList.appendChild(item);
-            });
-        }
-
-        // ارسال داده‌های خرید به سرور
-        document.getElementById('confirm-purchase-btn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const userId = localStorage.getItem('userId');
-            if (!userId) {
-                alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
-                window.location.replace('/login.html');
-                return;
-            }
-            const formData = {
-                userId: userId,
-                type: 'purchase',
-                store: document.getElementById('purchase-store-select').value,
-                item: document.getElementById('purchase-item-select').value,
-                quantity: document.getElementById('purchase-quantity').value || 0,
-                weight: document.getElementById('purchase-weight').value || 0,
-                price: document.getElementById('purchase-price').value || 0,
-                extraInfo: document.getElementById('purchase-extra-info').value,
-                date: new Date().toISOString().split('T')[0]
-            };
-            try {
-                await fetch('/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                document.getElementById('success-message').style.display = 'block';
-                document.getElementById('purchase-store-select').value = '';
-                document.getElementById('purchase-item-select').value = '';
-                document.getElementById('purchase-quantity').value = '';
-                document.getElementById('purchase-weight').value = '';
-                document.getElementById('purchase-price').value = '';
-                document.getElementById('purchase-extra-info').value = '';
-                updatePurchaseList();
-            } catch (error) {
-                console.error('Error submitting purchase:', error);
-                alert('خطا در ثبت خرید');
-            }
-        });
-
-        // ارسال داده‌های فروش به سرور
-        document.getElementById('confirm-sale-btn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const userId = localStorage.getItem('userId');
-            if (!userId) {
-                alert('لطفاً ابتدا وارد حساب کاربری خود شوید');
-                window.location.replace('/login.html');
-                return;
-            }
-            const formData = {
-                userId: userId,
-                type: 'sale',
-                store: document.getElementById('sales-store-select').value,
-                item: document.getElementById('sales-item-select').value,
-                quantity: document.getElementById('sales-quantity').value || 0,
-                weight: document.getElementById('sales-weight').value || 0,
-                price: document.getElementById('sales-price').value || 0,
-                extraInfo: document.getElementById('sales-extra-info').value,
-                date: new Date().toISOString().split('T')[0]
-            };
-            try {
-                await fetch('/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                document.getElementById('success-message').style.display = 'block';
-                document.getElementById('sales-store-select').value = '';
-                document.getElementById('sales-item-select').value = '';
-                document.getElementById('sales-quantity').value = '';
-                document.getElementById('sales-weight').value = '';
-                document.getElementById('sales-price').value = '';
-                document.getElementById('sales-extra-info').value = '';
-                updateSalesList();
-            } catch (error) {
-                console.error('Error submitting sale:', error);
-                alert('خطا در ثبت فروش');
-            }
-        });
-
-        // فراخوانی توابع به‌روزرسانی موقع لود صفحه
-        document.addEventListener('DOMContentLoaded', () => {
-            updateStoreSelects();
-            updateItemSelects();
-            updatePurchaseList();
-            updateSalesList();
-
-            document.getElementById('purchase-list-store-select').addEventListener('change', updatePurchaseList);
-            document.getElementById('sales-list-store-select').addEventListener('change', updateSalesList);
         });
 
         // نمایش مودال اطلاعات
         document.getElementById('info-btn').addEventListener('click', () => {
             document.getElementById('info-modal').style.display = 'block';
+        });
+
+        // فراخوانی تابع بررسی ورود کاربر موقع لود صفحه
+        document.addEventListener('DOMContentLoaded', () => {
+            checkUserLogin();
         });
     </script>
 </body>

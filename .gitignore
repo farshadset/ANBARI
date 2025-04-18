@@ -1,3 +1,4 @@
 node_modules/
 cloudflared-windows-amd64.exe
 .vscode/
+.vercel

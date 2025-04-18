@@ -1,4 +1,16 @@
+// Initialize Supabase Client
+const { createClient } = supabase;
+const supabaseUrl = 'https://eqvntgatghetawqgzfrj.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxdm50Z2F0Z2hldGF3cWd6ZnJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyMTgzNzksImV4cCI6MjA1OTc5NDM3OX0.rjwexkcrG32FFjhkLZ-Nm9BaUGHhZ3puJOupfpS3Fd4';
+const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
+let stores = [];
+let items = [];
+let purchases = [];
+let sales = [];
+
 document.addEventListener('DOMContentLoaded', () => {
+
     // --- Element References ---
     const body = document.body;
     const appHeader = document.querySelector('.app-header');
@@ -116,37 +128,120 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayPurchaseFormTitle = document.getElementById('purchase-form-title') || { textContent: '' };
     const purchaseFormTitle = document.getElementById('purchase-form-title') || { textContent: '' };
 
-    // --- Data Storage ---
-    let stores = JSON.parse(localStorage.getItem('anbari_stores_v2')) || [];
-    let items = JSON.parse(localStorage.getItem('anbari_items_v2')) || [];
-    let purchases = JSON.parse(localStorage.getItem('anbari_purchases_v2')) || [];
-    let sales = JSON.parse(localStorage.getItem('anbari_sales_v2')) || [];
-
-    // --- Utility Functions ---
-    const saveData = () => {
-        localStorage.setItem('anbari_stores_v2', JSON.stringify(stores));
-        localStorage.setItem('anbari_items_v2', JSON.stringify(items));
-        localStorage.setItem('anbari_purchases_v2', JSON.stringify(purchases));
-        localStorage.setItem('anbari_sales_v2', JSON.stringify(sales));
+    // --- User Management ---
+    // فرض می‌کنیم userId از یک سیستم لاگین یا ورودی کاربر دریافت می‌شود
+        // --- User Management ---
+    // Get the current user from Supabase
+        // --- User Management ---
+    // Get the current user from Supabase
+    const getCurrentUser = async () => {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        return user ? user.id : 'user_' + Date.now().toString();
+    };
+    
+    // متغیر userId به صورت گلوبال تعریف می‌شود
+    let userId;
+    
+    // تابع async برای مقداردهی اولیه userId
+    const initializeUser = async () => {
+        const userId = await getCurrentUser();
+        localStorage.setItem('userId', userId);
+        return userId;
     };
 
-    const showPage = (pageId) => {
-        pages.forEach(page => page.classList.remove('active'));
-        document.getElementById(pageId)?.classList.add('active');
-        navButtons.forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.page === pageId) btn.classList.add('active');
-        });
-        switch (pageId) {
-            case 'stores-page': renderStoresList(); break;
-            case 'items-page': renderItemsList(); break;
-            case 'purchase-page': loadPurchasePageData(); break;
-            case 'sales-page': loadSalesPageData(); break;
-            case 'tools-page': loadToolsPageData(); break;
-            case 'profit-loss-page': loadProfitLossPageData(); break;
+    const saveData = async () => {
+        // Update userData before saving
+        userData[userId] = { stores, items, purchases, sales };
+        localStorage.setItem('anbari_user_data_v2', JSON.stringify(userData));
+    
+        const userId = localStorage.getItem('userId');
+        if (!userId) {
+            console.log('User not logged in, skipping Supabase save');
+            return;
         }
-        content.scrollTop = 0;
-        clearAllForms();
+    
+        try {
+            // Sync stores with Supabase
+            await supabaseClient.from('stores').delete().eq('userId', userId);
+            if (stores.length > 0) {
+                const storesWithUserId = stores.map(store => ({
+                    id: store.id,
+                    name: store.name,
+                    userId
+                }));
+                const { error: storesError } = await supabaseClient
+                    .from('stores')
+                    .insert(storesWithUserId);
+                if (storesError) throw storesError;
+            }
+    
+            // Sync items with Supabase
+            await supabaseClient.from('items').delete().eq('userId', userId);
+            if (items.length > 0) {
+                const itemsWithUserId = items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    importance: item.importance,
+                    userId
+                }));
+                const { error: itemsError } = await supabaseClient
+                    .from('items')
+                    .insert(itemsWithUserId);
+                if (itemsError) throw itemsError;
+            }
+    
+            // Sync purchases and sales into the 'data' table
+            await supabaseClient.from('data').delete().eq('userId', userId);
+    
+            const dataToInsert = [];
+    
+            // Add purchases to data table
+            if (purchases.length > 0) {
+                const purchasesData = purchases.map(purchase => ({
+                    id: purchase.id,
+                    type: 'purchase',
+                    store: purchase.storeId,
+                    item: purchase.itemId,
+                    quantity: purchase.quantity,
+                    weight: purchase.weight,
+                    price: purchase.price,
+                    date: new Date(purchase.timestamp).toISOString(),
+                    userId,
+                    extraInfo: purchase.extraInfo
+                }));
+                dataToInsert.push(...purchasesData);
+            }
+    
+            // Add sales to data table
+            if (sales.length > 0) {
+                const salesData = sales.map(sale => ({
+                    id: sale.id,
+                    type: 'sale',
+                    store: sale.storeId,
+                    item: sale.itemId,
+                    quantity: sale.quantity,
+                    weight: sale.weight,
+                    price: sale.price,
+                    date: new Date(sale.timestamp).toISOString(),
+                    userId,
+                    extraInfo: sale.extraInfo
+                }));
+                dataToInsert.push(...salesData);
+            }
+    
+            if (dataToInsert.length > 0) {
+                const { error: dataError } = await supabaseClient
+                    .from('data')
+                    .insert(dataToInsert);
+                if (dataError) throw dataError;
+            }
+    
+            console.log('Data saved to Supabase successfully');
+    
+        } catch (error) {
+            console.error('Error saving to Supabase:', error);
+            // If Supabase save fails, at least we saved locally
+        }
     };
 
     const openModal = (modalId) => {
@@ -337,10 +432,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    addStoreBtn.addEventListener('click', addStore);
-    confirmEditStoreBtn.addEventListener('click', confirmEditStore);
-    deleteStoreBtn.addEventListener('click', deleteStore);
-
     // --- Items Logic ---
     const renderItemsList = () => {
         itemsList.innerHTML = '';
@@ -354,8 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
             li.dataset.id = item.id;
             li.innerHTML = `
                 <span class="item-name">${item.name}</span>
-                <span class="item-details">ارزش: ${item.importance === 'weight' ? 'وزن' : 'تعداد'}</span>`;
-            li.addEventListener('click', () => openEditItemModal(item.id));
+                <span class="item-details">${item.importance === 'quantity' ? 'ارزش‌گذاری بر اساس تعداد' : 'ارزش‌گذاری بر اساس وزن'}</span>`;
+            li.addEventListener('click', () => openItemDetailsModal(item.id));
             itemsList.appendChild(li);
         });
     };
@@ -367,15 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('کالایی با این نام از قبل وجود دارد.');
                 return;
             }
-            const newItem = {
-                id: Date.now().toString(),
-                name,
-                weight: 0,
-                quantity: 0,
-                importance: 'quantity',
-                extraInfo: '',
-                dateAdded: Date.now()
-            };
+            const newItem = { id: Date.now().toString(), name, importance: 'quantity' };
             items.push(newItem);
             saveData();
             renderItemsList();
@@ -386,99 +469,103 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const openEditItemModal = (itemId) => {
+    const openItemDetailsModal = (itemId) => {
         const item = items.find(i => i.id === itemId);
         if (item) {
             itemModalTitle.textContent = 'ویرایش کالا';
             editItemIdInput.value = item.id;
             itemModalName.value = item.name;
-            const importanceRadio = document.querySelector(`input[name="item-importance"][value="${item.importance || 'quantity'}"]`);
-            if (importanceRadio) importanceRadio.checked = true;
-
-            const existingDeleteBtn = document.querySelector('#item-details-modal .btn-delete');
-            if (existingDeleteBtn) existingDeleteBtn.remove();
-
-            deleteItemBtn.textContent = 'حذف کالا';
-            deleteItemBtn.classList.add('btn-delete');
-            deleteItemBtn.addEventListener('click', () => deleteItem(item.id));
-            const modalActions = itemDetailsModal.querySelector('.modal-actions');
-            modalActions.insertBefore(deleteItemBtn, modalActions.firstChild);
-
+            itemModalImportanceRadios.forEach(radio => {
+                radio.checked = radio.value === item.importance;
+            });
+            
+            // Add delete button if not already added
+            if (!document.getElementById('delete-item-btn')) {
+                deleteItemBtn.id = 'delete-item-btn';
+                deleteItemBtn.className = 'btn-danger';
+                deleteItemBtn.textContent = 'از بین بردن';
+                deleteItemBtn.addEventListener('click', deleteItem);
+                document.querySelector('#item-details-modal .modal-actions').appendChild(deleteItemBtn);
+            }
+            
             openModal('item-details-modal');
         }
     };
 
     const confirmItemDetails = () => {
         const itemId = editItemIdInput.value;
-        const name = itemModalName.value.trim();
-        const importance = document.querySelector('input[name="item-importance"]:checked')?.value || 'quantity';
-
-        if (!name) {
+        const newName = itemModalName.value.trim();
+        const importance = document.querySelector('input[name="item-importance"]:checked').value;
+        
+        if (!newName) {
             alert('نام کالا نمی‌تواند خالی باشد.');
             return;
         }
-        if (items.some(i => i.id !== itemId && i.name.toLowerCase() === name.toLowerCase())) {
+        
+        if (items.some(i => i.id !== itemId && i.name.toLowerCase() === newName.toLowerCase())) {
             alert('کالای دیگری با این نام از قبل وجود دارد.');
             return;
         }
-
+        
         const itemIndex = items.findIndex(i => i.id === itemId);
         if (itemIndex > -1) {
-            items[itemIndex].name = name;
+            items[itemIndex].name = newName;
             items[itemIndex].importance = importance;
             saveData();
             renderItemsList();
             closeModal('item-details-modal');
             populateItemSelects();
-            if (document.getElementById('purchase-page').classList.contains('active')) renderPurchaseLog();
-            if (document.getElementById('sales-page').classList.contains('active')) renderSalesLog(salesStoreSelect.value);
-            if (document.getElementById('tools-page').classList.contains('active')) {
-                renderInventoryList(inventoryStoreSelect.value);
-                renderSalesControlList(salesControlStoreSelect.value);
-            }
         }
     };
 
-    const deleteItem = (itemId) => {
-        if (confirm('آیا مطمئنی می‌خوای این کالا رو حذف کنی؟')) {
+    const deleteItem = () => {
+        if (confirm('آیا مطمئنی می‌خوای این کالا رو از بین ببری؟')) {
+            const itemId = editItemIdInput.value;
+            
+            // Check if item is used in purchases or sales
+            const usedInPurchases = purchases.some(p => p.itemId === itemId);
+            const usedInSales = sales.some(s => s.itemId === itemId);
+            
+            if (usedInPurchases || usedInSales) {
+                if (!confirm('این کالا در خرید یا فروش استفاده شده است. حذف آن ممکن است باعث ایجاد مشکل در گزارش‌ها شود. آیا مطمئنی می‌خوای ادامه بدی؟')) {
+                    return;
+                }
+            }
+            
             items = items.filter(i => i.id !== itemId);
-            purchases = purchases.filter(p => p.itemId !== itemId);
-            sales = sales.filter(s => s.itemId !== itemId);
             saveData();
             renderItemsList();
             closeModal('item-details-modal');
             populateItemSelects();
-            if (document.getElementById('purchase-page').classList.contains('active')) renderPurchaseLog();
-            if (document.getElementById('sales-page').classList.contains('active')) renderSalesLog(salesStoreSelect.value);
-            if (document.getElementById('tools-page').classList.contains('active')) {
-                renderInventoryList(inventoryStoreSelect.value);
-                renderSalesControlList(salesControlStoreSelect.value);
-            }
         }
     };
 
-    addItemBtn.addEventListener('click', addItem);
-    confirmItemDetailsBtn.addEventListener('click', confirmItemDetails);
-
-    // --- Populate Select Dropdowns ---
+    // --- Select Population ---
     const populateStoreSelects = () => {
-        const selects = [
-            purchaseStoreSelect, salesStoreSelect, inventoryStoreSelect, salesControlStoreSelect,
-            purchaseListStoreSelect, salesListStoreSelect
+        const storeSelects = [
+            purchaseStoreSelect,
+            purchaseListStoreSelect,
+            salesStoreSelect,
+            salesListStoreSelect,
+            inventoryStoreSelect,
+            salesControlStoreSelect,
+            editPurchaseStoreSelect
         ];
-        const currentValues = selects.map(s => s.value);
-
-        selects.forEach((select, index) => {
-            const firstOption = select.options[0] || new Option('-- انتخاب کنید --', '');
-            select.innerHTML = '';
-            select.appendChild(firstOption);
-
+        
+        const currentValues = storeSelects.map(select => select?.value || '');
+        
+        storeSelects.forEach((select, index) => {
+            if (!select) return;
+            
+            select.innerHTML = '<option value="">-- انتخاب کنید --</option>';
+            
             stores.forEach(store => {
                 const option = document.createElement('option');
                 option.value = store.id;
                 option.textContent = store.name;
                 select.appendChild(option);
             });
+            
             if (stores.some(s => s.id === currentValues[index])) {
                 select.value = currentValues[index];
             } else {
@@ -879,11 +966,11 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <div class="purchase-card-header" style="display: flex; justify-content: space-between;">
                     <span class="purchase-item-name">${item.name}</span>
-                    <span class="purchase-date" style="margin-right: 10px; cursor: pointer;" title="برای ویرایش تاریخ کلیک کنید">${formatDate(sale.timestamp)}</span>
+                    <span class="purchase-date" data-sale-id="${sale.id}" data-store-id="${storeId}" style="margin-right: 10px; cursor: pointer;" title="برای ویرایش تاریخ کلیک کنید">${formatDate(sale.timestamp)}</span>
                 </div>
                 <div class="purchase-details">
                     <div class="quantity-price" style="display: flex; gap: 60px;">
-                        <span class="quantity" style="font-size: 1em; font-family: inherit; font-weight: bold;">${item.importance === 'quantity' ? `تعداد: ${quantity} عدد` : `وزن: ${weight.toFixed(2)} کیلوگرم`}</span>
+                        <span class="quantity" style="font-size: 1em; font-family: inherit; font-weight: bold;">${quantity > 0 ? `تعداد: ${quantity} عدد` : `وزن: ${weight.toFixed(2)} کیلوگرم`}</span>
                     </div>
                     <div class="total-price-extra">
                         <span class="total-price" style="font-size: 1em; font-family: inherit; font-weight: bold;">قیمت کل: ${formatPrice(totalPrice)} تومان</span>
@@ -895,7 +982,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ` : ''}
                 </div>
-                <button class="delete-btn" title="حذف" style="position: absolute; left: 10px; bottom: 10px;"><i class="fas fa-trash-alt"></i></button>
+                <div style="position: absolute; left: 10px; bottom: 10px;">
+                    <button class="delete-btn" title="حذف" style="background: none; border: none; cursor: pointer;"><i class="fas fa-trash-alt"></i></button>
+                </div>
             `;
             
             const deleteBtn = card.querySelector('.delete-btn');
@@ -908,74 +997,77 @@ document.addEventListener('DOMContentLoaded', () => {
                         sales.splice(saleIndex, 1);
                         saveData();
                         renderSalesList(storeId);
+                        renderSalesLog(storeId);
+                        renderInventoryList(storeId);
+                        populateItemSelectsForSale(storeId);
                         showSuccessMessage('فروش با موفقیت حذف شد');
                     }
                 }
             });
-
+            
             dateSpan.addEventListener('click', () => {
                 openCustomDatePicker('sale', sale.timestamp);
                 editSaleIdInput.value = sale.id;
-                // Store the current storeId for use in confirmCustomDate
-                dateSpan.dataset.storeId = storeId;
-                dateSpan.dataset.saleId = sale.id;
             });
             
             salesList.appendChild(card);
         });
     };
 
-    salesItemSelect.addEventListener('change', () => {
-        const storeId = salesStoreSelect.value;
-        const itemId = salesItemSelect.value;
-        if (storeId && itemId) {
-            const item = items.find(i => i.id === itemId);
-            if (!item) {
-                salesItemStock.textContent = '';
-                return;
-            }
-            const stock = calculateInventory(storeId, itemId);
-            salesItemStock.textContent = `موجودی: ${item.importance === 'quantity' 
-                ? `${stock.quantity} عدد` 
-                : `${stock.weight.toFixed(2)} کیلوگرم`}`;
-        } else {
-            salesItemStock.textContent = '';
-        }
-    });
-
-    const renderSalesLog = () => {
+    const renderSalesLog = (storeId) => {
+        if (!salesLogGrouped) return;
+        
         salesLogGrouped.innerHTML = '';
-        const filtered = sales.filter(s => {
-            if (salesStoreSelect.value && s.storeId !== salesStoreSelect.value) return false;
-            return true;
-        });
-
-        if (filtered.length === 0) {
-            salesLogGrouped.innerHTML = '<div class="empty-log">هنوز فروشی ثبت نشده است.</div>';
+        
+        if (!storeId) {
+            salesLogGrouped.innerHTML = '<div class="empty-log">لطفاً یک فروشگاه انتخاب کنید</div>';
             return;
         }
-
-        filtered.forEach(sale => {
-            const item = items.find(i => i.id === sale.itemId) || { name: 'کالای نامشخص' };
-            const store = stores.find(st => st.id === sale.storeId) || { name: 'فروشگاه نامشخص' };
+        
+        const storeSales = sales.filter(s => s.storeId === storeId);
+        
+        if (storeSales.length === 0) {
+            salesLogGrouped.innerHTML = '<div class="empty-log">هنوز کالایی در این فروشگاه فروخته نشده است</div>';
+            return;
+        }
+        
+        // Group sales by item
+        const salesByItem = {};
+        storeSales.forEach(sale => {
+            if (!salesByItem[sale.itemId]) {
+                salesByItem[sale.itemId] = [];
+            }
+            salesByItem[sale.itemId].push(sale);
+        });
+        
+        // Create a summary for each item
+        Object.keys(salesByItem).forEach(itemId => {
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
             
-            const li = document.createElement('li');
-            li.className = 'sale-item sale-box';
-            li.innerHTML = `
-                <div class="sale-box-content">
-                    <div class="sale-box-header">
-                        <span class="sale-item-name">${item.name}</span>
-                        <div class="sale-item-details">
-                            <span>🔹 ${item.importance === 'quantity' ? `تعداد: ${sale.quantity} عدد` : `وزن: ${sale.weight.toFixed(2)} کیلوگرم`}</span>
-                        </div>
-                    </div>
-                    <div class="sale-item-date">📅 تاریخ فروش: ${formatDate(sale.timestamp)}</div>
-                    ${sale.extraInfo ? `<div class="sale-item-extra-info">📝 ${sale.extraInfo}</div>` : ''}
+            const salesForItem = salesByItem[itemId];
+            const totalQuantity = salesForItem.reduce((sum, s) => sum + (s.quantity || 0), 0);
+            const totalWeight = salesForItem.reduce((sum, s) => sum + (s.weight || 0), 0);
+            const totalRevenue = salesForItem.reduce((sum, s) => {
+                const saleTotal = s.price * (s.quantity || s.weight);
+                return sum + saleTotal;
+            }, 0);
+            
+            const itemSummary = document.createElement('div');
+            itemSummary.className = 'sales-summary-item';
+            itemSummary.innerHTML = `
+                <div class="sales-summary-header">
+                    <span class="sales-item-name">${item.name}</span>
+                </div>
+                <div class="sales-summary-details">
+                    <span class="sales-quantity">${item.importance === 'quantity' 
+                        ? `تعداد فروش: ${totalQuantity} عدد` 
+                        : `وزن فروش: ${totalWeight.toFixed(2)} کیلوگرم`}</span>
+                    <span class="sales-revenue">درآمد کل: ${formatPrice(totalRevenue)} تومان</span>
                 </div>
             `;
             
-            li.querySelector('.sale-item-name').addEventListener('click', () => openEditSaleModal(sale.id));
-            salesLogGrouped.appendChild(li);
+            salesLogGrouped.appendChild(itemSummary);
         });
     };
 
@@ -1353,130 +1445,126 @@ document.addEventListener('DOMContentLoaded', () => {
         const timestamp = date.getTime();
         
         if (currentDateTarget === 'purchase') {
-            editPurchaseTimestampDisplay.textContent = formatDate(timestamp);
-            editPurchaseTimestampDisplay.dataset.timestamp = timestamp;
+            const purchaseId = editPurchaseIdInput.value;
+            const purchase = purchases.find(p => p.id === purchaseId);
+            if (purchase) {
+                purchase.timestamp = timestamp;
+                saveData();
+                renderPurchaseList(purchaseListStoreSelect.value);
+                closeModal('date-picker-modal');
+            }
         } else if (currentDateTarget === 'sale') {
-            editSaleTimestampDisplay.textContent = formatDate(timestamp);
-            editSaleTimestampDisplay.dataset.timestamp = timestamp;
+            const saleId = editSaleIdInput.value;
+            const sale = sales.find(s => s.id === saleId);
+            if (sale) {
+                sale.timestamp = timestamp;
+                saveData();
+                renderSalesList(salesListStoreSelect.value);
+                closeModal('date-picker-modal');
+            }
         }
-        
-        closeModal('date-picker-modal');
     };
-    
+
     confirmDateBtn.addEventListener('click', confirmDate);
 
-    // --- Info Modal Logic ---
-    // infoBtn.addEventListener('click', () => openModal('info-modal'));
-
-    // --- Copy Card Number ---
-    const copyCardNumber = () => {
-        const cardNumber = '6219861809148280';
-        
-        const tempInput = document.createElement('input');
-        tempInput.value = cardNumber;
-        document.body.appendChild(tempInput);
-        
-        tempInput.select();
-        document.execCommand('copy');
-        
-        document.body.removeChild(tempInput);
-        
-        copySuccess.style.display = 'block';
-        setTimeout(() => {
-            copySuccess.style.display = 'none';
-        }, 3000);
-    };
-
-    document.getElementById('donate-link').addEventListener('click', () => {
-        const cardNumber = '1234-5678-9012-3456'; 
-        navigator.clipboard.writeText(cardNumber).then(() => {
-            const copySuccessMessage = document.getElementById('copy-success');
-            copySuccessMessage.style.display = 'block';
-            setTimeout(() => {
-                copySuccessMessage.style.display = 'none';
-            }, 3000); // پیام به مدت 3 ثانیه نمایش داده می‌شود
-        });
-    });
-
     // --- Custom Date Picker ---
-    const populateCustomDatePicker = (timestamp = Date.now()) => {
-        const date = new Date(timestamp);
+    const populateCustomDatePicker = (timestamp) => {
+        const date = new Date(timestamp || Date.now());
         
-        // Year input
-        customDateYear.innerHTML = '';
-        const currentYear = date.getFullYear();
-        const startYear = currentCalendarType === 'shamsi' ? 1390 : 2011;
-        const endYear = currentCalendarType === 'shamsi' ? 1410 : 2031;
-        
-        for (let y = startYear; y <= endYear; y++) {
-            const option = document.createElement('option');
-            option.value = y;
-            option.textContent = y;
-            if ((currentCalendarType === 'shamsi' && y === toJalali(date).jy) || 
-                (currentCalendarType === 'gregorian' && y === currentYear)) {
-                option.selected = true;
+        if (currentCalendarType === 'shamsi') {
+            const jalali = toJalali(date);
+            
+            customDateYear.innerHTML = '';
+            for (let y = jalali.jy - 10; y <= jalali.jy + 10; y++) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                if (y === jalali.jy) option.selected = true;
+                customDateYear.appendChild(option);
             }
-            customDateYear.appendChild(option);
+            
+            customDateMonth.innerHTML = '';
+            for (let m = 1; m <= 12; m++) {
+                const option = document.createElement('option');
+                option.value = m;
+                option.textContent = m;
+                if (m === jalali.jm) option.selected = true;
+                customDateMonth.appendChild(option);
+            }
+            
+            updateCustomDays();
+            
+            customDateHour.innerHTML = '';
+            for (let h = 0; h < 24; h++) {
+                const option = document.createElement('option');
+                option.value = h;
+                option.textContent = h.toString().padStart(2, '0') + ':00';
+                if (h === date.getHours()) option.selected = true;
+                customDateHour.appendChild(option);
+            }
+        } else {
+            customDateYear.innerHTML = '';
+            const currentYear = date.getFullYear();
+            for (let y = currentYear - 10; y <= currentYear + 10; y++) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                if (y === currentYear) option.selected = true;
+                customDateYear.appendChild(option);
+            }
+            
+            customDateMonth.innerHTML = '';
+            for (let m = 1; m <= 12; m++) {
+                const option = document.createElement('option');
+                option.value = m;
+                option.textContent = m < 10 ? `0${m}` : m;
+                if (m === (date.getMonth() + 1)) option.selected = true;
+                customDateMonth.appendChild(option);
+            }
+            
+            updateCustomDays();
+            
+            customDateHour.innerHTML = '';
+            for (let h = 0; h < 24; h++) {
+                const option = document.createElement('option');
+                option.value = h;
+                option.textContent = h.toString().padStart(2, '0') + ':00';
+                if (h === date.getHours()) option.selected = true;
+                customDateHour.appendChild(option);
+            }
         }
-        
-        // Month input
-        customDateMonth.innerHTML = '';
-        const monthNames = currentCalendarType === 'shamsi' 
-            ? ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']
-            : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        monthNames.forEach((month, i) => {
-            const option = document.createElement('option');
-            option.value = i + 1;
-            option.textContent = month;
-            if ((currentCalendarType === 'shamsi' && i+1 === toJalali(date).jm) || 
-                (currentCalendarType === 'gregorian' && i === date.getMonth())) {
-                option.selected = true;
-            }
-            customDateMonth.appendChild(option);
-        });
-        
-        // Hour input
-        customDateHour.innerHTML = '';
-        for (let h = 0; h < 24; h++) {
-            const option = document.createElement('option');
-            option.value = h;
-            option.textContent = h.toString().padStart(2, '0') + ':00';
-            if (h === date.getHours()) {
-                option.selected = true;
-            }
-            customDateHour.appendChild(option);
-        }
-        
-        updateCustomDays();
     };
     
     const updateCustomDays = () => {
-        customDateDay.innerHTML = '';
-        
         const year = parseInt(customDateYear.value);
         const month = parseInt(customDateMonth.value);
-        const currentDate = new Date();
         let daysInMonth;
         
         if (currentCalendarType === 'shamsi') {
-            if (month <= 6) daysInMonth = 31;
-            else if (month <= 11) daysInMonth = 30;
-            else daysInMonth = isJalaliLeapYear(year) ? 30 : 29;
+            if (month <= 6) {
+                daysInMonth = 31;
+            } else if (month <= 11) {
+                daysInMonth = 30;
+            } else {
+                daysInMonth = isJalaliLeapYear(year) ? 30 : 29;
+            }
         } else {
-            const lastDayOfMonth = new Date(year, month, 0);
-            daysInMonth = lastDayOfMonth.getDate();
+            daysInMonth = new Date(year, month, 0).getDate();
         }
+        
+        customDateDay.innerHTML = '';
+        const currentDate = new Date();
         
         for (let d = 1; d <= daysInMonth; d++) {
             const option = document.createElement('option');
             option.value = d;
-            option.textContent = d;
+            option.textContent = d < 10 ? `0${d}` : d;
             
             if (currentCalendarType === 'shamsi') {
-                if (d === toJalali(currentDate).jd && 
-                    month === toJalali(currentDate).jm && 
-                    year === toJalali(currentDate).jy) {
+                const jalali = toJalali(currentDate);
+                if (d === jalali.jd && 
+                    month === jalali.jm && 
+                    year === jalali.jy) {
                     option.selected = true;
                 }
             } else {
@@ -1678,100 +1766,39 @@ document.addEventListener('DOMContentLoaded', () => {
         openCustomDatePicker('purchase', purchase.timestamp);
     });
     
+    customDateYear.addEventListener('change', updateCustomDays);
+    customDateMonth.addEventListener('change', updateCustomDays);
+    confirmCustomDateBtn.addEventListener('click', confirmCustomDate);
+    
+    editPurchaseDateBtn.addEventListener('click', () => {
+        const purchaseId = editPurchaseIdInput.value;
+        const purchase = purchases.find(p => p.id === purchaseId);
+        openCustomDatePicker('purchase', purchase.timestamp);
+    });
+    
     editSaleDateBtn.addEventListener('click', () => {
         const saleId = editSaleIdInput.value;
         const sale = sales.find(s => s.id === saleId);
         openCustomDatePicker('sale', sale.timestamp);
     });
 
-    const clearAllForms = () => {
-        salesItemSelect.value = '';
-        salesQuantityInput.value = '';
-        salesWeightInput.value = '';
-        salesPriceInput.value = '';
-        salesExtraInfoInput.value = '';
-
-        purchaseStoreSelect.value = '';
-        purchaseItemSelect.value = '';
-        purchaseQuantityInput.value = '';
-        purchaseWeightInput.value = '';
-        purchasePriceInput.value = '';
-        purchaseExtraInfoInput.value = '';
-
-        inventoryStoreSelect.value = '';
-        inventoryItemSelect.value = '';
-        inventoryQuantityInput.value = '';
-        inventoryWeightInput.value = '';
-        inventoryExtraInfoInput.value = '';
-    };
-
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', clearAllForms);
-    });
-
-    document.getElementById('donate-link').addEventListener('click', () => {
-        const cardNumber = '1234-5678-9012-3456'; 
-        navigator.clipboard.writeText(cardNumber).then(() => {
-            const copySuccessMessage = document.getElementById('copy-success');
-            copySuccessMessage.style.display = 'block';
-            setTimeout(() => {
-                copySuccessMessage.style.display = 'none';
-            }, 3000); // پیام به مدت 3 ثانیه نمایش داده می‌شود
-        });
-    });
-
-    // --- Initial Load ---
-    const initializeApp = () => {
-        const savedTheme = localStorage.getItem('anbari_theme') || 'light';
-        applyTheme(savedTheme);
-        renderStoresList();
-        populateStoreSelects();
-        populateItemSelects();
-        showPage('stores-page');
-    };
-
-    initializeApp();
-
-    // باز کردن مدال ویرایش خرید
+    // --- Edit Purchase Modal Logic ---
     const openEditPurchaseModal = (purchaseId) => {
         const purchase = purchases.find(p => p.id === purchaseId);
-        if (!purchase) return;
-        
-        editPurchaseIdInput.value = purchase.id;
-        editPurchaseStoreSelect.value = purchase.storeId;
-        populateItemSelects();
-        editPurchaseItemSelect.value = purchase.itemId;
-        
-        // Enable inputs and set values
-        editPurchaseQuantity.disabled = false;
-        editPurchaseWeight.disabled = false;
-        editPurchasePrice.disabled = false;
-        
-        editPurchaseQuantity.value = purchase.quantity || '';
-        editPurchaseWeight.value = purchase.weight || '';
-        editPurchasePrice.value = purchase.price || '';
-        editPurchaseExtraInfo.value = purchase.extraInfo || '';
-        
-        // Disable quantity/weight based on item type
-        const item = items.find(i => i.id === purchase.itemId);
-        if (item) {
-            if (item.importance === 'quantity') {
-                editPurchaseWeight.disabled = true;
-                editPurchaseWeight.value = '';
-            } else if (item.importance === 'weight') {
-                editPurchaseQuantity.disabled = true;
-                editPurchaseQuantity.value = '';
-            }
+        if (purchase) {
+            editPurchaseIdInput.value = purchase.id;
+            editPurchaseStoreSelect.value = purchase.storeId;
+            editPurchaseItemSelect.value = purchase.itemId;
+            editPurchaseQuantity.value = purchase.quantity || '';
+            editPurchaseWeight.value = purchase.weight || '';
+            editPurchasePrice.value = purchase.price || '';
+            editPurchaseExtraInfo.value = purchase.extraInfo || '';
+            editPurchaseTimestampDisplay.textContent = formatDate(purchase.timestamp);
+            editPurchaseTimestampDisplay.dataset.timestamp = purchase.timestamp;
+            openModal('edit-purchase-modal');
         }
-        
-        const formattedDate = formatDate(purchase.timestamp);
-        editPurchaseTimestampDisplay.textContent = formattedDate;
-        editPurchaseTimestampDisplay.dataset.timestamp = purchase.timestamp;
-        
-        editPurchaseModal.style.display = 'block';
     };
-    
-    // تایید ویرایش خرید
+
     const confirmEditPurchase = () => {
         const purchaseId = editPurchaseIdInput.value;
         const storeId = editPurchaseStoreSelect.value;
@@ -1779,188 +1806,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const quantity = parseInt(editPurchaseQuantity.value) || 0;
         const weight = parseFloat(editPurchaseWeight.value) || 0;
         const price = parseFloat(editPurchasePrice.value) || 0;
-        const totalPrice = price * (quantity || weight);
         const extraInfo = editPurchaseExtraInfo.value.trim();
         const timestamp = parseInt(editPurchaseTimestampDisplay.dataset.timestamp) || Date.now();
-        
-        if (!storeId) { 
-            alert('لطفاً فروشگاه را انتخاب کنید.'); 
-            return; 
-        }
-        if (!itemId) { 
-            alert('لطفاً کالا را انتخاب کنید.'); 
-            return; 
-        }
-        
-        const item = items.find(i => i.id === itemId);
-        if (!item) { 
-            alert('کالای انتخاب شده یافت نشد.'); 
-            return; 
-        }
-        
-        if (item.importance === 'quantity' && weight > 0) {
-            alert('ارزش کالا بر اساس تعداد است.');
-            return;
-        }
-        if (item.importance === 'weight' && quantity > 0) {
-            alert('ارزش کالا بر اساس وزن است.');
-            return;
-        }
-        if (quantity <= 0 && weight <= 0) { 
-            alert('لطفاً تعداد یا وزن معتبر وارد کنید.'); 
-            return; 
-        }
-        
-        const purchaseIndex = purchases.findIndex(p => p.id === purchaseId);
-        if (purchaseIndex > -1) {
-            const updatedPurchase = {
-                id: purchaseId,
-                storeId,
-                itemId,
-                quantity,
-                weight,
-                price,
-                totalPrice,
-                extraInfo,
-                timestamp
-            };
-            
-            purchases[purchaseIndex] = updatedPurchase;
-            saveData();
-            renderPurchaseLog();
-            renderPurchaseList(purchaseListStoreSelect.value);
-            editPurchaseModal.style.display = 'none';
-            
-            if (document.getElementById('tools-page').classList.contains('active')) {
-                renderInventoryList(purchaseListStoreSelect.value);
-            }
-            
-            showSuccessMessage('تغییرات با موفقیت ذخیره شد');
-        }
-    };
-    
-    // حذف خرید
-    const deletePurchase = () => {
-        if (confirm('آیا مطمئنی می‌خوای این خرید رو حذف کنی؟')) {
-            const purchaseId = editPurchaseIdInput.value;
-            const purchaseIndex = purchases.findIndex(p => p.id === purchaseId);
-            
-            if (purchaseIndex > -1) {
-                purchases.splice(purchaseIndex, 1);
-                saveData();
-                renderPurchaseLog();
-                renderPurchaseList(purchaseListStoreSelect.value);
-                editPurchaseModal.style.display = 'none';
-                
-                if (document.getElementById('tools-page').classList.contains('active')) {
-                    renderInventoryList(purchaseListStoreSelect.value);
-                }
-                
-                showSuccessMessage('خرید با موفقیت حذف شد');
-            }
-        }
-    };
 
-    document.addEventListener('click', (e) => {
-        if (e.target.closest('.purchase-card-header')) {
-            const purchaseId = e.target.closest('.purchase-card').dataset.purchaseId;
-            openEditPurchaseModal(purchaseId);
-        }
-    });
-    
-    confirmEditPurchaseBtn.addEventListener('click', confirmEditPurchase);
-    deletePurchaseBtn.addEventListener('click', deletePurchase);
-
-    document.addEventListener('click', function(event) {
-        if (event.target.closest('.delete-btn')) {
-            const purchaseItem = event.target.closest('.purchase-item');
-            if (purchaseItem) {
-                purchaseItem.remove();
-                savePurchases();
-                showSuccessMessage('کالا با موفقیت حذف شد');
-            }
-        }
-    });
-
-    // --- Purchase Log Functions ---
-    const renderPurchaseLog = () => {
-        const storeId = purchaseStoreSelect.value;
-        if (storeId) {
-            renderPurchaseList(storeId);
-        } else {
-            purchaseListGrid.innerHTML = '';
-            purchaseListEmpty.style.display = 'block';
-        }
-    };
-
-    purchaseStoreSelect.addEventListener('change', renderPurchaseLog);
-
-    // --- Event Listeners ---
-    if (editSaleDateBtn) {
-        editSaleDateBtn.addEventListener('click', () => openDatePicker('edit-sale-date-btn'));
-    }
-
-    // --- Purchase Page Logic ---
-    purchaseStoreSelect.addEventListener('change', () => {
-        const storeId = purchaseStoreSelect.value;
-        renderPurchaseLog();
-    });
-
-    // --- Initial Load ---
-    // Removed duplicate initializeApp function declaration
-
-    salesItemSelect.addEventListener('change', () => {
-        const storeId = salesStoreSelect.value;
-        const itemId = salesItemSelect.value;
-        if (storeId && itemId) {
-            const item = items.find(i => i.id === itemId);
-            if (!item) {
-                salesItemStock.textContent = '';
-                return;
-            }
-            const stock = calculateInventory(storeId, itemId);
-            salesItemStock.textContent = `موجودی: ${item.importance === 'quantity' 
-                ? `${stock.quantity} عدد (مجموع خرید: ${stock.totalPurchasedQuantity} عدد)` 
-                : `${stock.weight.toFixed(2)} کیلوگرم (مجموع خرید: ${stock.totalPurchasedWeight.toFixed(2)} کیلوگرم)`}`;
-        } else {
-            salesItemStock.textContent = '';
-        }
-    });
-
-    salesItemSelect.addEventListener('change', () => {
-        const storeId = salesStoreSelect.value;
-        const itemId = salesItemSelect.value;
-        if (storeId && itemId) {
-            const item = items.find(i => i.id === itemId);
-            if (!item) {
-                salesItemStock.textContent = '';
-                return;
-            }
-            const stock = calculateInventory(storeId, itemId);
-            salesItemStock.textContent = `موجودی: ${item.importance === 'quantity' 
-                ? `${stock.quantity} عدد (مجموع خرید: ${stock.totalPurchasedQuantity} عدد)` 
-                : `${stock.weight.toFixed(2)} کیلوگرم (مجموع خرید: ${stock.totalPurchasedWeight.toFixed(2)} کیلوگرم)`}`;
-        } else {
-            salesItemStock.textContent = '';
-        }
-    });
-
-    window.addSale = window.addSale || function() {
-        const storeId = salesStoreSelect.value;
-        const itemId = salesItemSelect.value;
-        const quantity = parseInt(salesQuantityInput.value) || 0;
-        const weight = parseFloat(salesWeightInput.value) || 0;
-        const price = parseFloat(salesPriceInput.value) || 0;
-        const extraInfo = salesExtraInfoInput.value.trim();
-        const timestamp = Date.now();
-
-        // Validate basic inputs
         if (!storeId) { alert('لطفاً فروشگاه را انتخاب کنید.'); return; }
         if (!itemId) { alert('لطفاً کالا را انتخاب کنید.'); return; }
         const item = items.find(i => i.id === itemId);
         if (!item) { alert('کالای انتخاب شده یافت نشد.'); return; }
 
-        // Validate quantity/weight based on item importance
         if (item.importance === 'quantity' && weight > 0) {
             alert('ارزش کالا بر اساس تعداد است.');
             return;
@@ -1972,157 +1825,319 @@ document.addEventListener('DOMContentLoaded', () => {
         if (quantity <= 0 && weight <= 0) { alert('لطفاً تعداد یا وزن معتبر وارد کنید.'); return; }
         if (price <= 0) { alert('لطفاً قیمت واحد معتبر وارد کنید.'); return; }
 
-        // Check stock availability
-        const currentStock = calculateInventory(storeId, itemId);
-        
-        if (item.importance === 'quantity') {
-            if (quantity > currentStock.quantity) {
-                alert(`مقدار درخواستی (${quantity} عدد) از موجودی کل (${currentStock.quantity} عدد) بیشتر است.`);
-                return;
-            }
-        } else { // weight
-            if (weight > currentStock.weight) {
-                alert(`وزن درخواستی (${weight.toFixed(2)} کیلوگرم) از موجودی کل (${currentStock.weight.toFixed(2)} کیلوگرم) بیشتر است.`);
-                return;
-            }
-        }
-
-        // If we get here, all validations passed
-        const newSale = { 
-            id: `s-${timestamp}`, 
-            storeId, 
-            itemId, 
-            quantity, 
-            weight, 
-            price,
-            extraInfo, 
-            timestamp
-        };
-        
-        // Add the sale and update displays
-        sales.push(newSale);
-        saveData();
-
-        // Reset form and refresh page data
-        clearSalesForm();
-        loadSalesPageData();
-        
-        // Restore the selected store and refresh its data
-        salesStoreSelect.value = storeId;
-        salesStoreSelect.dispatchEvent(new Event('change'));
-        
-        // Show success message
-        showSuccessMessage('کالا با موفقیت ثبت شد');
-        
-        // Update all necessary displays
-        renderSalesLog(storeId);
-        renderSalesList(storeId);
-        renderInventoryList(storeId);
-        populateItemSelectsForSale(storeId); // Update the item select with restored stock values
-    };
-
-    confirmSaleBtn.addEventListener('click', addSale);
-
-    // --- Profit Loss Page Logic ---
-    const loadProfitLossPageData = () => {
-        const profitLossList = document.getElementById('profit-loss-list');
-        profitLossList.innerHTML = '';
-
-        const totalProfit = sales.reduce((sum, sale) => sum + (sale.price * (sale.quantity || sale.weight)), 0);
-        const totalLoss = purchases.reduce((sum, purchase) => sum + (purchase.price * (purchase.quantity || purchase.weight)), 0);
-
-        const profitLoss = totalProfit - totalLoss;
-
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <div class="sale-box-content">
-                <div class="sale-box-header">
-                    <span class="sale-item-name">سود و زیان</span>
-                </div>
-                <div class="sale-item-date">سود کل: ${formatPrice(totalProfit)} تومان</div>
-                <div class="sale-item-date">زیان کل: ${formatPrice(totalLoss)} تومان</div>
-                <div class="sale-item-date">سود و زیان خالص: ${formatPrice(profitLoss)} تومان</div>
-            </div>
-        `;
-        profitLossList.appendChild(li);
-    };
-
-    document.getElementById('profit-loss-btn')?.addEventListener('click', () => {
-        // Hide all pages
-        document.querySelectorAll('.page').forEach(page => {
-            page.classList.remove('active');
-        });
-        
-        // Show profit-loss page
-        document.getElementById('profit-loss-page').classList.add('active');
-        
-        // Update navigation buttons
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-    });
-
-    // When tools button is clicked in nav bar
-    document.querySelector('.nav-btn[data-page="tools-page"]')?.addEventListener('click', () => {
-        // Hide all pages
-        document.querySelectorAll('.page').forEach(page => {
-            page.classList.remove('active');
-        });
-        
-        // Show tools page
-        document.getElementById('tools-page').classList.add('active');
-        
-        // Update navigation buttons
-        document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        // Activate tools button
-        document.querySelector('.nav-btn[data-page="tools-page"]').classList.add('active');
-    });
-
-    // Sales date click handler
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('purchase-date') && e.target.closest('.purchase-card')) {
-            const card = e.target.closest('.purchase-card');
-            const saleId = card.dataset.saleId;
-            const sale = sales.find(s => s.id === saleId);
-            
-            if (sale) {
-                // Store current sale ID being edited
-                document.getElementById('edit-sale-id-input').value = saleId;
-                
-                // Open date picker modal
-                document.getElementById('date-picker-modal').style.display = 'block';
-            }
-        }
-    });
-
-    // Date Picker Confirmation for Sales
-    document.getElementById('confirm-date-btn')?.addEventListener('click', () => {
-        const saleId = document.getElementById('edit-sale-id-input').value;
-        const sale = sales.find(s => s.id === saleId);
-        
-        if (sale) {
-            const year = document.getElementById('date-year').value;
-            const month = document.getElementById('date-month').value;
-            const day = document.getElementById('date-day').value;
-            const hour = document.getElementById('date-hour').value;
-            
-            // Update sale timestamp
-            const selectedDate = new Date(year, month-1, day, hour);
-            sale.timestamp = selectedDate.getTime();
-            
-            // Save and refresh
+        const purchaseIndex = purchases.findIndex(p => p.id === purchaseId);
+        if (purchaseIndex > -1) {
+            const totalPrice = price * (quantity || weight);
+            purchases[purchaseIndex] = {
+                ...purchases[purchaseIndex],
+                storeId,
+                itemId,
+                quantity,
+                weight,
+                price,
+                totalPrice,
+                extraInfo,
+                timestamp
+            };
             saveData();
-            const storeId = document.getElementById('sales-list-store-select').value;
-            renderSalesList(storeId);
+            renderPurchaseList(purchaseListStoreSelect.value);
+            editPurchaseModal.style.display = 'none';
             
-            // Close modal
-            document.getElementById('date-picker-modal').style.display = 'none';
-            
-            // Show success message
-            showSuccessMessage('تاریخ با موفقیت ویرایش شد');
+            if (document.getElementById('tools-page').classList.contains('active')) {
+                renderInventoryList(inventoryStoreSelect.value);
+                renderSalesControlList(salesControlStoreSelect.value);
+            }
+            showSuccessMessage('خرید با موفقیت ویرایش شد');
         }
-    });
+    };
+
+    const deletePurchase = () => {
+        if (confirm('آیا مطمئنی می‌خوای این خرید رو حذف کنی؟')) {
+            const purchaseId = editPurchaseIdInput.value;
+            purchases = purchases.filter(p => p.id !== purchaseId);
+            saveData();
+            renderPurchaseList(purchaseListStoreSelect.value);
+            closeModal('edit-purchase-modal');
+            if (document.getElementById('tools-page').classList.contains('active')) {
+                renderInventoryList(inventoryStoreSelect.value);
+                renderSalesControlList(salesControlStoreSelect.value);
+            }
+            showSuccessMessage('خرید با موفقیت حذف شد');
+        }
+    };
+
+    confirmEditPurchaseBtn.addEventListener('click', confirmEditPurchase);
+    deletePurchaseBtn.addEventListener('click', deletePurchase);
+
+    // Update renderPurchaseList to include edit button
+    const renderPurchaseLog = () => {
+        purchaseListGrid.innerHTML = '';
+        const filtered = purchases.filter(p => {
+            if (purchaseStoreSelect.value && p.storeId !== purchaseStoreSelect.value) return false;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            purchaseListEmpty.style.display = 'block';
+            purchaseListGrid.style.display = 'none';
+            purchaseListEmpty.textContent = 'هنوز خریدی ثبت نشده است.';
+            return;
+        }
+
+        purchaseListEmpty.style.display = 'none';
+        purchaseListGrid.style.display = 'grid';
+
+        filtered.forEach(purchase => {
+            const li = document.createElement('li');
+            const item = items.find(i => i.id === purchase.itemId) || { name: 'کالای نامشخص', importance: 'quantity' };
+            const store = stores.find(s => s.id === purchase.storeId) || { name: 'فروشگاه نامشخص' };
+            li.className = 'log-item purchase';
+            li.innerHTML = `
+                <span class="log-item-main">${item.name} <small>(${store.name})</small></span>
+                <span class="log-item-details">
+                    ${item.importance === 'quantity' ? `تعداد: ${purchase.quantity}` : `وزن: ${purchase.weight.toFixed(2)} ک.گ`} | 
+                    قیمت: ${formatPrice(purchase.totalPrice)} تومان | 
+                    ${formatDate(purchase.timestamp)}
+                    ${purchase.extraInfo ? ` | ${purchase.extraInfo}` : ''}
+                </span>`;
+            li.addEventListener('click', () => openEditPurchaseModal(purchase.id));
+            purchaseListGrid.appendChild(li);
+        });
+    };
+
+    // --- Profit/Loss Page Logic ---
+    const loadProfitLossPageData = () => {
+        populateStoreSelects();
+        renderProfitLoss();
+    };
+
+    const renderProfitLoss = () => {
+        const profitLossContainer = document.getElementById('profit-loss-container');
+        profitLossContainer.innerHTML = '';
+
+        const storeSales = sales.reduce((acc, sale) => {
+            const storeId = sale.storeId;
+            if (!acc[storeId]) acc[storeId] = [];
+            acc[storeId].push(sale);
+            return acc;
+        }, {});
+
+        const storePurchases = purchases.reduce((acc, purchase) => {
+            const storeId = purchase.storeId;
+            if (!acc[storeId]) acc[storeId] = [];
+            acc[storeId].push(purchase);
+            return acc;
+        }, {});
+
+        Object.keys(storeSales).forEach(storeId => {
+            const store = stores.find(s => s.id === storeId);
+            if (!store) return;
+
+            const salesForStore = storeSales[storeId];
+            const purchasesForStore = storePurchases[storeId] || [];
+
+            const totalSalesRevenue = salesForStore.reduce((sum, sale) => {
+                const totalPrice = (sale.quantity || sale.weight) * sale.price;
+                return sum + totalPrice;
+            }, 0);
+
+            const totalPurchaseCost = purchasesForStore.reduce((sum, purchase) => {
+                return sum + (purchase.totalPrice || (purchase.quantity || purchase.weight) * purchase.price);
+            }, 0);
+
+            const profitLoss = totalSalesRevenue - totalPurchaseCost;
+            const profitLossText = profitLoss >= 0
+                ? `سود: ${formatPrice(profitLoss)} تومان`
+                : `زیان: ${formatPrice(Math.abs(profitLoss))} تومان`;
+
+            const storeSummary = document.createElement('div');
+            storeSummary.className = 'profit-loss-item sale-box';
+            storeSummary.innerHTML = `
+                <div class="sale-box-content">
+                    <div class="sale-box-header">
+                        <span class="sale-item-name">${store.name}</span>
+                        <div class="sale-item-details">
+                            <span>🔹 درآمد فروش: ${formatPrice(totalSalesRevenue)} تومان</span>
+                            <span style="display: block; margin-top: 5px;">🔹 هزینه خرید: ${formatPrice(totalPurchaseCost)} تومان</span>
+                            <span style="display: block; margin-top: 5px;">🔹 ${profitLossText}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            profitLossContainer.appendChild(storeSummary);
+        });
+
+        if (!Object.keys(storeSales).length) {
+            profitLossContainer.innerHTML = '<div class="empty-log">هنوز فروشی ثبت نشده است</div>';
+        }
+    };
+
+    // --- Info Modal Logic ---
+    infoBtn.addEventListener('click', () => openModal('info-modal'));
+
+    // --- Donate Link Logic ---
+    if (donateLink) {
+        donateLink.addEventListener('click', () => {
+            const cardNumber = '6037-9975-9502-4955';
+            navigator.clipboard.writeText(cardNumber).then(() => {
+                copySuccess.style.display = 'block';
+                setTimeout(() => {
+                    copySuccess.style.display = 'none';
+                }, 3000);
+            });
+        });
+    }
+
+    const init = async () => {
+        // مقداردهی اولیه userId
+        await initializeUser();
+    
+        // Apply saved theme
+        const savedTheme = localStorage.getItem('anbari_theme') || 'light';
+        applyTheme(savedTheme);
+    
+        // Fetch data from Supabase on page load
+        await fetchDataFromServer();
+    
+        // Update UI after fetching data
+        populateStoreSelects();
+        populateItemSelects();
+        renderStoresList();
+        renderItemsList();
+        renderPurchaseList(purchaseListStoreSelect.value);
+        renderSalesList(salesListStoreSelect.value);
+    
+        // Show initial page
+        showPage('stores-page');
+    
+        // Add event listeners
+        addStoreBtn.addEventListener('click', addStore);
+        addItemBtn.addEventListener('click', addItem);
+        confirmItemDetailsBtn.addEventListener('click', confirmItemDetails);
+        confirmEditStoreBtn.addEventListener('click', confirmEditStore);
+        deleteStoreBtn.addEventListener('click', deleteStore);
+    
+        // Show success message
+        showSuccessMessage('برنامه با موفقیت بارگذاری شد');
+    };
+    
+    // Show success message function
+    const showSuccessMessage = (message) => {
+        const successMessage = document.getElementById('success-message');
+        if (successMessage) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+    };
+    
+    // Clear all forms function
+    const clearAllForms = () => {
+        // Clear store form
+        if (newStoreNameInput) newStoreNameInput.value = '';
+        
+        // Clear item form
+        if (newItemNameInput) newItemNameInput.value = '';
+        
+        // Clear purchase form
+        if (purchaseStoreSelect) purchaseStoreSelect.value = '';
+        if (purchaseItemSelect) purchaseItemSelect.value = '';
+        if (purchaseQuantityInput) purchaseQuantityInput.value = '';
+        if (purchaseWeightInput) purchaseWeightInput.value = '';
+        if (purchasePriceInput) purchasePriceInput.value = '';
+        if (purchaseExtraInfoInput) purchaseExtraInfoInput.value = '';
+        
+        // Clear sales form
+        if (salesStoreSelect) salesStoreSelect.value = '';
+        if (salesItemSelect) salesItemSelect.value = '';
+        if (salesQuantityInput) salesQuantityInput.value = '';
+        if (salesWeightInput) salesWeightInput.value = '';
+        if (salesPriceInput) salesPriceInput.value = '';
+        if (salesExtraInfoInput) salesExtraInfoInput.value = '';
+    };
+    
+    // Initialize the app
+    init();
 });
+
+const fetchDataFromServer = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+        console.log('User not logged in, skipping Supabase data fetch');
+        return;
+    }
+
+    try {
+        // دریافت تمام داده‌ها از جدول data
+        const { data: records, error } = await supabaseClient
+            .from('data')
+            .select('*')
+            .eq('userId', userId);
+
+        if (error) throw error;
+
+        // جداسازی داده‌ها بر اساس نوع
+        stores = records
+            .filter(record => record.type === 'store')
+            .map(record => ({
+                id: record.id,
+                name: record.store // ستون store برای نام فروشگاه
+            })) || [];
+
+        items = records
+            .filter(record => record.type === 'item')
+            .map(record => ({
+                id: record.id,
+                name: record.item, // ستون item برای نام کالا
+                importance: record.extraInfo || 'quantity' // استفاده از extraInfo برای importance
+            })) || [];
+
+        purchases = records
+            .filter(record => record.type === 'purchase')
+            .map(record => ({
+                id: record.id,
+                storeId: record.store,
+                itemId: record.item,
+                quantity: record.quantity || 0,
+                weight: record.weight || 0,
+                price: record.price || 0,
+                totalPrice: record.extraInfo === 'quantity'
+                    ? (record.quantity || 0) * (record.price || 0)
+                    : (record.weight || 0) * (record.price || 0),
+                extraInfo: record.extraInfo || '',
+                timestamp: new Date(record.date).getTime()
+            })) || [];
+
+        sales = records
+            .filter(record => record.type === 'sale')
+            .map(record => ({
+                id: record.id,
+                storeId: record.store,
+                itemId: record.item,
+                quantity: record.quantity || 0,
+                weight: record.weight || 0,
+                price: record.price || 0,
+                extraInfo: record.extraInfo || '',
+                timestamp: new Date(record.date).getTime()
+            })) || [];
+
+        // ذخیره در localStorage برای استفاده آفلاین
+        const localData = { stores, items, purchases, sales };
+        localStorage.setItem('anbari_data', JSON.stringify(localData));
+
+        console.log('Data fetched from Supabase successfully:', localData);
+
+    } catch (error) {
+        console.error('Error fetching data from Supabase:', error);
+        // بارگذاری از localStorage در صورت خطا
+        const localData = JSON.parse(localStorage.getItem('anbari_data')) || {};
+        stores = localData.stores || [];
+        items = localData.items || [];
+        purchases = localData.purchases || [];
+        sales = localData.sales || [];
+    }
+};
+
+export { supabaseClient, populateStoreSelects, formatDate, formatPrice, showSuccessMessage, stores, items, purchases, sales, fetchDataFromServer, calculateInventory, populateItemSelectsForSale, getCurrentUser, initializeUser };
