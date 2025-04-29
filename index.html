@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>انباری | مدیریت انبار</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1 class="app-title" style="font-family: 'Cairo', sans-serif;">ANBARI</h1>
+            <div class="header-actions">
+                <button id="info-btn" class="icon-btn"></button>
+                <button id="theme-toggle-btn" class="icon-btn"><i class="fas fa-sun"></i></button>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- Stores Page -->
+            <div id="stores-page" class="page active">
+                <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                    <label>افزودن فروشگاه جدید</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="new-store-name" placeholder="نام فروشگاه">
+                        <button class="btn-primary" id="add-store-btn">اضافه کن</button>
+                    </div>
+                </div>
+                <ul id="stores-list" class="item-list"></ul>
+            </div>
+
+            <!-- Items Page -->
+            <div id="items-page" class="page">
+                <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                    <label>افزودن کالای جدید</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="new-item-name" placeholder="نام کالا">
+                        <button class="btn-primary" id="add-item-btn">اضافه کن</button>
+                    </div>
+                </div>
+                <ul id="items-list" class="item-list"></ul>
+            </div>
+
+            <!-- Purchase Page -->
+            <div id="purchase-page" class="page">
+                <div class="purchase-form-box">
+                    <label>فروشگاه</label>
+                    <select id="purchase-store-select"></select>
+                    <label>کالا</label>
+                    <select id="purchase-item-select"></select>
+                    <div class="quantity-weight-row">
+                        <div class="quantity-input">
+                            <label>تعداد</label>
+                            <input type="number" id="purchase-quantity" min="0" step="1">
+                        </div>
+                        <div class="weight-input">
+                            <label>وزن (ک.گ)</label>
+                            <input type="number" id="purchase-weight" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <label>قیمت واحد (ت)</label>
+                    <input type="number" id="purchase-price" min="0" step="0.01">
+                    <label>توضیحات اضافی</label>
+                    <textarea id="purchase-extra-info"></textarea>
+                    <button class="btn-primary" id="confirm-purchase-btn">ثبت خرید</button>
+                </div>
+                <div id="purchase-list-container" style="margin-top: 20px;">
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin: 3px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="purchase-list-store-select"></select>
+                    </div>
+                    <div id="purchase-list-container-inner">
+                        <div id="purchase-list-empty" class="empty-message" style="display: none;">هیچ خریدی یافت نشد</div>
+                        <div id="purchase-list" class="purchase-list-grid">
+                            <div class="purchase-list-item">
+                                <div class="item-header">
+                                    <span class="item-name">اسم کالا</span>
+                                    <span class="item-date">تاریخ</span>
+                                    <div class="icon-container">
+                                        <button class="edit-btn"><i class="fas fa-pencil-alt"></i></button>
+                                        <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                <div class="item-details">
+                                    <div class="details-row">
+                                        <span class="quantity-weight">تعداد/وزن</span>
+                                        <span class="unit-price">قیمت واحد</span>
+                                    </div>
+                                    <div class="details-row">
+                                        <span class="total-price">قیمت کل</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Page -->
+            <div id="sales-page" class="page">
+                <div class="purchase-form-box">
+                    <label>فروشگاه</label>
+                    <select id="sales-store-select"></select>
+                    <label>کالا</label>
+                    <select id="sales-item-select"></select>
+                    <div class="quantity-weight-row">
+                        <div class="quantity-input">
+                            <label>تعداد</label>
+                            <input type="number" id="sales-quantity" min="0" step="1">
+                        </div>
+                        <div class="weight-input">
+                            <label>وزن (ک.گ)</label>
+                            <input type="number" id="sales-weight" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <label>قیمت واحد (ت)</label>
+                    <input type="number" id="sales-price" min="0" step="0.01">
+                    <label>توضیحات اضافی</label>
+                    <textarea id="sales-extra-info"></textarea>
+                    <button class="btn-primary" id="confirm-sale-btn">ثبت فروش</button>
+                </div>
+                <div id="sales-list-container" style="margin-top: 20px;">
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin: 3px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="sales-list-store-select"><option value="">-- انتخاب کنید --</option><option value="1743614843617">شماره 1</option><option value="1743614849444">شماره 2</option></select>
+                    </div>
+                    <div id="sales-list-container-inner">
+                        <div id="sales-list-empty" class="empty-message" style="display: none;">هیچ فروشی یافت نشد</div>
+                        <div id="sales-items-list" class="purchase-list-grid" style="display: grid;">
+                            <div class="purchase-list-item">
+                                <div class="item-header">
+                                    <span class="item-name">اسم کالا</span>
+                                    <span class="item-date">تاریخ</span>
+                                    <div class="icon-container">
+                                        <button class="edit-btn"><i class="fas fa-pencil-alt"></i></button>
+                                        <button class="delete-btn"><i class="fas fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                <div class="item-details">
+                                    <div class="details-row">
+                                        <span class="quantity-weight">تعداد/وزن</span>
+                                        <span class="unit-price">قیمت واحد</span>
+                                    </div>
+                                    <div class="details-row">
+                                        <span class="total-price">قیمت کل</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit & Loss Page -->
+            <div id="profit-loss-page" class="page">
+                <div class="form-section" style="background-color: var(--card-bg); border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <h3 style="text-align: center; margin-bottom: 20px; color: var(--primary-color);">سود و زیان</h3>
+                    <div id="profit-loss-content"></div>
+                </div>
+            </div>
+
+            <!-- Tools Page -->
+            <div id="tools-page" class="page">
+                <div class="inventory-box" style="background-color: white; border-radius: 8px; padding: 15px;">
+                    <h3><i class="fas fa-clipboard-list"></i> موجودی انبار</h3>
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="inventory-store-select"></select>
+                    </div>
+                    <div class="sort-tabs" id="inventory-sort-tabs">
+                        <div>
+                            <button data-sort="quantity" class="active">تعداد</button>
+                            <button data-sort="weight">وزن</button>
+                            <button data-sort="price">قیمت</button>
+                        </div>
+                    </div>
+                    <ul id="inventory-list" class="item-list"></ul>
+                </div>
+
+                <div class="inventory-box" style="background-color: white; border-radius: 8px; padding: 15px;">
+                    <h3><i class="fas fa-chart-line"></i> کنترل فروش</h3>
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                        <label>انتخاب فروشگاه</label>
+                        <select id="sales-control-store-select"></select>
+                    </div>
+                    <div class="sort-tabs" id="sales-control-sort-tabs">
+                        <div>
+                            <button data-sort="quantity" class="active">تعداد</button>
+                            <button data-sort="weight">وزن</button>
+                            <button data-sort="totalPrice">قیمت کل</button>
+                        </div>
+                    </div>
+                    <ul id="sales-control-list" class="item-list"></ul>
+                </div>
+
+                <div class="inventory-box">
+                    <h3><i class="fas fa-search"></i> جستجوی پیشرفته</h3>
+                    <div class="form-section" style="width: calc(100% - 30px); max-width: 600px; margin-top: 20px;">
+                        <input type="text" id="advanced-search-input" placeholder="جستجو بر اساس نام کالا، فروشگاه یا توضیحات">
+                        <button class="btn-primary" id="run-advanced-search-btn">جستجو</button>
+                    </div>
+                    <div class="sort-tabs" id="advanced-search-sort-tabs">
+                        <div>
+                            <button data-sort="date" class="active">تاریخ</button>
+                            <button data-sort="item_name">نام کالا</button>
+                            <button data-sort="store_name">نام فروشگاه</button>
+                            <button data-sort="quantity">تعداد</button>
+                            <button data-sort="weight">وزن</button>
+                            <button data-sort="purchase_total_price">قیمت خرید</button>
+                            <button data-sort="sale_total_price">قیمت فروش</button>
+                        </div>
+                    </div>
+                    <div id="advanced-search-results"></div>
+                </div>
+            </div>
+
+            <!-- Edit Store Modal -->
+            <div id="edit-store-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('edit-store-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-edit"></i> ویرایش فروشگاه</h3>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>نام فروشگاه</label>
+                        <input type="text" id="edit-store-name-input">
+                        <input type="hidden" id="edit-store-id-input">
+                    </div>
+                    <div class="button-row">
+                        <button class="btn-primary" id="confirm-edit-store-btn">ثبت تغییرات</button>
+                        <button class="btn-danger" id="delete-store-btn">از بین بردن</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Details Modal -->
+            <div id="item-details-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('item-details-modal').style.display='none'">×</span>
+                    <h3 id="item-modal-title"><i class="fas fa-box"></i> جزئیات کالا</h3>
+                    <input type="hidden" id="edit-item-id-input">
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>نام کالا</label>
+                        <input type="text" id="item-modal-name">
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>ارزش‌گذاری بر اساس</label>
+                        <div style="display: flex; gap: 20px;">
+                            <label><input type="radio" name="item-importance" value="quantity" checked> تعداد</label>
+                            <label><input type="radio" name="item-importance" value="weight"> وزن</label>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-confirm" id="confirm-item-details-btn">ثبت تغییرات</button>
+                        <button class="btn-cancel" onclick="document.getElementById('item-details-modal').style.display='none'">لغو</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Sale Modal -->
+            <div id="edit-sale-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('edit-sale-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-edit"></i> ویرایش فروش</h3>
+                    <input type="hidden" id="edit-sale-id-input">
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>فروشگاه</label>
+                        <select id="edit-sale-store-select"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>کالا</label>
+                        <select id="edit-sale-item-select"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>تعداد</label>
+                        <input type="number" id="edit-sale-quantity" min="0" step="1">
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>وزن (ک.گ)</label>
+                        <input type="number" id="edit-sale-weight" min="0" step="0.01">
+                    </div>
+                    <div class="form-section full-width" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>توضیحات اضافی</label>
+                        <textarea id="edit-sale-extra-info"></textarea>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>تاریخ</label>
+                        <span id="edit-sale-timestamp-display"></span>
+                        <button class="btn-primary" id="edit-sale-date-btn">تغییر تاریخ</button>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-confirm" id="confirm-edit-sale-btn">ثبت تغییرات</button>
+                        <button class="btn-cancel" onclick="document.getElementById('edit-sale-modal').style.display='none'">لغو</button>
+                        <button class="btn-delete" id="delete-sale-btn">حذف</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Purchase Modal -->
+            <div id="edit-purchase-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('edit-purchase-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-edit"></i> ویرایش خرید</h3>
+                    <input type="hidden" id="edit-purchase-id-input">
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>فروشگاه</label>
+                        <select id="edit-purchase-store-select"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>کالا</label>
+                        <select id="edit-purchase-item-select"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>تعداد</label>
+                        <input type="number" id="edit-purchase-quantity" min="0" step="1">
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>وزن (ک.گ)</label>
+                        <input type="number" id="edit-purchase-weight" min="0" step="0.01">
+                    </div>
+                    <div class="form-section full-width" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>توضیحات اضافی</label>
+                        <textarea id="edit-purchase-extra-info"></textarea>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>تاریخ</label>
+                        <span id="edit-purchase-timestamp-display"></span>
+                        <button class="btn-primary" id="edit-purchase-date-btn">تغییر تاریخ</button>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-confirm" id="confirm-edit-purchase-btn">ثبت تغییرات</button>
+                        <button class="btn-cancel" onclick="document.getElementById('edit-purchase-modal').style.display='none'">لغو</button>
+                        <button class="btn-delete" id="delete-purchase-btn">حذف</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Average Price Calculator Modal -->
+            <div id="avg-price-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('avg-price-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-calculator"></i> محاسبه قیمت میانگین</h3>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>قیمت محصول</label>
+                        <div class="avg-price-input-container">
+                            <input type="number" id="current-price-input" min="0" step="0.01" placeholder="قیمت را وارد کنید">
+                            <button id="add-price-btn" class="btn-circle"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <div class="price-tags-container" id="price-tags-container">
+                            <!-- Price tags will be added here dynamically -->
+                        </div>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <div class="avg-result">
+                            <span>تعداد: <b id="price-count">0</b></span>
+                            <span>میانگین: <b id="price-average">0</b></span>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="calculate-avg-price-btn"><i class="fas fa-equals"></i> محاسبه میانگین</button>
+                    <button class="btn-secondary" id="reset-avg-price-btn"><i class="fas fa-redo"></i> شروع مجدد</button>
+                </div>
+            </div>
+
+            <!-- Creator Info Modal -->
+            <div id="creator-info-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('creator-info-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-user-shield"></i> درباره سازنده</h3>
+                    <div class="creator-info">
+                        <p>عنبری</p>
+                        <p>نسخه: ANBARI 1.3.8.0</p>
+                        <p>توسعه دهنده: فرشاد ستایش</p>
+                        <p>این برنامه با هدف کارایی و نوآوری با استفاده از هوش مصنوعی (AI) طراحی و توسعه داده شده است تا بهترین را برای شما فراهم کند.</p>
+                        <p>در توسعه نسخه هایی با ویژگی های بیشتر و ایجاد اپلیکیشنی توانمند و کاربردی تر <span id="donate-link" class="donate-link"><b style="color: #007bff;">شریک باشید</b></span></p>
+                        <p id="copy-success" class="copy-success" style="display: none;">شماره کارت با موفقیت کپی شد 💰</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Date Picker Modal -->
+            <div id="custom-date-picker-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('custom-date-picker-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-calendar-alt"></i> انتخاب تاریخ</h3>
+                    <div class="calendar-type-selector">
+                        <button class="calendar-type-btn active" data-type="shamsi">شمسی</button>
+                        <button class="calendar-type-btn" data-type="gregorian">میلادی</button>
+                    </div>
+                    <div class="date-picker-container">
+                        <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                            <label>سال</label>
+                            <select id="custom-date-year"></select>
+                        </div>
+                        <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                            <label>ماه</label>
+                            <select id="custom-date-month"></select>
+                        </div>
+                        <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                            <label>روز</label>
+                            <select id="custom-date-day"></select>
+                        </div>
+                        <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                            <label>ساعت</label>
+                            <select id="custom-date-hour"></select>
+                        </div>
+                    </div>
+                    <button class="btn-primary" id="confirm-custom-date-btn">تایید</button>
+                </div>
+            </div>
+
+            <!-- Date Picker Modal -->
+            <div id="date-picker-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('date-picker-modal').style.display='none'">×</span>
+                    <h3><i class="fas fa-calendar"></i> انتخاب تاریخ</h3>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>نوع تقویم</label>
+                        <select id="calendar-type">
+                            <option value="persian">شمسی</option>
+                            <option value="gregorian">میلادی</option>
+                        </select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>سال</label>
+                        <select id="date-year"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>ماه</label>
+                        <select id="date-month"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>روز</label>
+                        <select id="date-day"></select>
+                    </div>
+                    <div class="form-section" style="width: calc(100% - 6px); max-width: 600px; margin-top: 20px;">
+                        <label>ساعت</label>
+                        <select id="date-hour"></select>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn-confirm" id="confirm-date-btn">تأیید</button>
+                        <button class="btn-cancel" onclick="document.getElementById('date-picker-modal').style.display='none'">لغو</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Modal -->
+            <div id="info-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="document.getElementById('info-modal').style.display='none'">×</span>
+                    <h3 class="modal-title">ANBARI</h3>
+                    <div class="creator-info">
+                        <p>Version: ANBARI 1.3.8.0</p>
+                        <p>توسعه‌دهنده: فرشاد ستایش</p>
+                        <p>این برنامه با هدف سادگی، کارایی و نوآوری با استفاده از هوش مصنوعی (AI) طراحی و توسعه داده شده تا تجربه بهتری را برای شما فراهم کند.</p>
+                        <p>در توسعه نسخه‌هایی با ویژگی‌های بیشتر و ایجاد اپلیکیشنی توانمند و کاربردی‌تر <span id="donate-link" class="donate-link"><b>شریک باشید</b></span></p>
+                        <p id="copy-success" class="copy-success">شماره کارت با موفقیت کپی شد 💰</p>
+                    </div>
+                </div>
+            </div>
+            <footer class="app-footer">
+                <nav class="nav-bar">
+                    <button class="nav-btn active" data-page="stores-page"><i class="fas fa-store"></i> <span>فروشگاه‌ها</span></button>
+                    <button class="nav-btn" data-page="items-page"><i class="fas fa-box"></i> <span>کالاها</span></button>
+                    <button class="nav-btn" data-page="purchase-page"><i class="fas fa-shopping-cart"></i> <span>خرید</span></button>
+                    <button class="nav-btn" data-page="sales-page"><i class="fas fa-cash-register"></i> <span>فروش</span></button>
+                    <button class="nav-btn" data-page="tools-page"><i class="fas fa-tools"></i> <span>ابزارها</span></button>
+                </nav>
+            </footer>
+        </div>
+
+        <script src="script.js"></script>
+        <div id="success-message" class="success-message" style="display: none;">کالا شما با موفقیت ثبت شد</div>
+    </body>
+</html>
